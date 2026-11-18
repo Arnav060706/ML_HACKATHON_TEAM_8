@@ -88,6 +88,10 @@ def score(pred_arcs: np.ndarray, route_arcs: list[int], true_arc, reliable, trip
 def evaluate(prediction: dict, data_dir: Path = DATA_DIR, trip_dir: Path | None = None) -> dict:
     """Metrics for a predict_trip() result, for both the HMM and the classifier-only output."""
     trip_dir = Path(trip_dir) if trip_dir else find_trip_dir(prediction["trip_id"], data_dir)
+    if len(read_route(trip_dir)) == 0:
+        # no reference route for this trip: report "not available" rather than a fake 0 % score
+        return {"trip_id": prediction["trip_id"], "reference_available": False,
+                "hmm": None, "classifier_only": None}
     trip, true_arc, reliable = reference_labels(trip_dir)
     hmm = score(np.array(prediction["pred_arc_hmm"]), prediction["route_arcs"], true_arc, reliable, trip)
     clf_route = prediction.get("route_arcs_classifier")
@@ -99,4 +103,5 @@ def evaluate(prediction: dict, data_dir: Path = DATA_DIR, trip_dir: Path | None 
     # plain floats, NaN -> None, so the result is valid JSON for the API
     clean = lambda d: {k: (None if isinstance(v, float) and np.isnan(v) else  # noqa: E731
                            (float(v) if isinstance(v, (float, np.floating)) else v)) for k, v in d.items()}
-    return {"trip_id": prediction["trip_id"], "hmm": clean(hmm), "classifier_only": clean(clf)}
+    return {"trip_id": prediction["trip_id"], "reference_available": True,
+            "hmm": clean(hmm), "classifier_only": clean(clf)}

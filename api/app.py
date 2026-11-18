@@ -177,8 +177,17 @@ def run_prediction(trip_id: str, use_viterbi: bool = True) -> dict:
         pred["matched_latlon"] = None
     resp = {k: v for k, v in pred.items() if k not in _DROP}
     resp["decoder_used"] = "HMM/Viterbi" if use_viterbi else "Classifier only (RF argmax)"
+    if m is None:  # trip has no reference route: prediction only, no accuracy
+        resp["metrics"] = {"decoder": decoder, "reference_available": False, "top1_accuracy": None,
+                           "top1_accuracy_reliable": None, "route_continuity": None, "route_f1": None,
+                           "route_precision": None, "route_recall": None, "route_mismatch": None,
+                           "n_points": pred["n_points"], "comparison": None}
+        log.info("trip %s | %s | points=%d skipped=%d | no reference route: metrics unavailable | "
+                 "predict %.2fs", trip_id, decoder, pred["n_points"], pred["n_skipped_points"], t_pred)
+        return resp
     resp["metrics"] = {
         "decoder": decoder,
+        "reference_available": True,
         "top1_accuracy": m["top1_all"],
         "top1_accuracy_reliable": m["top1_reliable"],
         "route_continuity": m["route_continuity"],

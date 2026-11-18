@@ -523,7 +523,10 @@
             document.getElementById('metricCont').innerText = pct(m.route_continuity);
             document.getElementById('metricF1').innerText = (m.route_f1 === null || m.route_f1 === undefined) ? "--" : m.route_f1.toFixed(3);
             document.getElementById('metricMismatch').innerText = (m.route_mismatch === null || m.route_mismatch === undefined) ? "--" : m.route_mismatch.toFixed(3);
-            if (m.comparison) {
+            if (m.reference_available === false) {
+                document.getElementById('comparisonDetails').innerText =
+                    "No reference route on Laptop 1 for this trip: route shown, accuracy not available.";
+            } else if (m.comparison && m.comparison.hmm && m.comparison.classifier_only) {
                 const c = m.comparison.classifier_only, h = m.comparison.hmm;
                 document.getElementById('comparisonDetails').innerText =
                     `Classifier only: ${pct(c.top1_all)} | Classifier + HMM: ${pct(h.top1_all)} ` +
