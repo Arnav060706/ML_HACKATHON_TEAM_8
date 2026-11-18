@@ -33,6 +33,13 @@ used ONLY to create the `label` column, never as a feature):
   from_in_deg,      in-degree of the arc's start node / out-degree of its end node
   to_out_deg        (junction complexity)
   twoway            1 if the reverse arc v->u exists
+
+Label reliability: a point whose aligned reference arc is > UNALIGNED_M away is
+not explained by the reference route (route gap / track off the network, e.g.
+trips 00000054, 00000033). Its candidate rows would all be labelled 0 even when
+the nearest arc is obviously right, so `label_reliable` = 0 marks them; the
+training harness should drop them when FITTING (they stay in the tables so
+metrics can be reported both ways).
 """
 from __future__ import annotations
 
@@ -53,8 +60,14 @@ from features.candidates import generate_candidates  # noqa: E402
 from features.geometry import angle_diff_deg, bearing_deg, point_segment  # noqa: E402
 from features.labels import assign_route_arcs  # noqa: E402
 
-RADIUS = 50.0
-TOP_K = 12
+# Chosen from results/candidate_miss_rate.csv (training trips only): the smallest
+# mean candidate set whose miss rate on alignable points is <= 1.5 %.
+# R=100,k=8 -> 1.37 % miss with 6.7 candidates/point; it dominates R=50,k=12
+# (2.00 % miss with 6.5) -- a wide radius rescues outlier fixes while k keeps the
+# candidate set small.
+RADIUS = 100.0
+TOP_K = 8
+UNALIGNED_M = 100.0  # points further than this from their aligned route arc are unreliable
 MIN_MOVE = 2.0  # metres of displacement needed for a reliable GPS heading
 
 FEATURES = ["dist_m", "dist_rank", "dist_minus_min", "n_cands", "proj_t",
@@ -143,6 +156,8 @@ def trip_tables(trip, radius=RADIUS, k=TOP_K):
     f["to_out_deg"] = att["to_out_deg"][ai]
     f["twoway"] = att["twoway"][ai].astype(np.int8)
     f["label"] = (ai == true_arc[pi]).astype(np.int8) if has_route else -1
+    reliable = (ldist <= UNALIGNED_M) if has_route else np.zeros(n, dtype=bool)
+    f["label_reliable"] = reliable[pi].astype(np.int8)
 
     # per-point table
     n_c = np.bincount(pi, minlength=n)
@@ -153,7 +168,8 @@ def trip_tables(trip, radius=RADIUS, k=TOP_K):
                         "t": tr.t.to_numpy(), "lon": tr.lon.to_numpy(), "lat": tr.lat.to_numpy(),
                         "x": pxy[:, 0], "y": pxy[:, 1], "epsg": trip.epsg,
                         "true_arc": true_arc, "route_pos": route_pos,
-                        "label_dist_m": ldist, "n_cands": n_c,
+                        "label_dist_m": ldist, "label_reliable": reliable.astype(np.int8),
+                        "n_cands": n_c,
                         "true_in_cands": in_c.astype(np.int8)})
     return f, pts
 
@@ -188,6 +204,9 @@ def build_partition(partition: str, radius=RADIUS, k=TOP_K, out_dir: Path | None
                "n_trips": int(P.trip_id.nunique()), "n_points": len(P),
                "n_candidate_rows": len(F), "positive_rate": float((F.label == 1).mean()),
                "candidate_miss_rate": float(1 - P.true_in_cands.mean()),
+               "candidate_miss_rate_reliable":
+                   float(1 - P.loc[P.label_reliable == 1, "true_in_cands"].mean()),
+               "frac_points_label_reliable": float(P.label_reliable.mean()),
                "points_without_candidates": int((P.n_cands == 0).sum()),
                "mean_candidates_per_point": float(P.n_cands.mean()),
                "features": FEATURES, "build_seconds": round(time.time() - t0, 1)}
