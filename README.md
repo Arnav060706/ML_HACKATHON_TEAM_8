@@ -4,7 +4,14 @@
 
 PathSnap is an end-to-end distributed machine learning system designed to reconstruct realistic vehicle trajectories by matching noisy, sparse GPS observations to real-world road networks. The system combines local UTM projection, KD-tree candidate arc generation, supervised machine learning classifiers, and Hidden Markov Model (HMM) Viterbi decoding served across a two-laptop distributed architecture.
 
-> **Status:** EDA, preprocessing, candidate generation, labelling, feature engineering, training of five model families and evidence-based model selection are complete (Evaluation 1). Bayesian tuning, the HMM/Viterbi decoder and the API/UI integration are in progress. `api/app.py` and `ui/index.html` are skeletons and do not yet return predictions.
+> **Status: complete.** EDA, preprocessing, candidates, labels, features, five model families and model selection (Evaluation 1); Bayesian (Optuna TPE) tuning of the Random Forest; HMM/Viterbi route reconstruction; FastAPI server with server-side evaluation; Leaflet evaluator UI.
+>
+> **Deployed pipeline:** tuned RF (`models/saved/rf_tuned.joblib`) + HMM/Viterbi (β = 5 m, gap 60 s, `inference/config.json`). Student-test results: Top-1 **0.933** (classifier alone 0.864), route continuity **0.982**, route F1 **0.973** (`results/hmm_vs_classifier.csv`).
+>
+> **Run the demo:** see `api/README.md` (Laptop 1) and `ui/README.md` (Laptop 2). Quick start, from the repo root:
+> `set PATHSNAP_TRIPS_PARTITION=evaluator_test` then `uvicorn api.app:app --host 0.0.0.0 --port 8000`; open `ui/index.html` on Laptop 2 and enter `http://<laptop-1-ip>:8000`.
+>
+> **Where things are:** HMM and inference in `inference/`; evaluation, β tuning and comparisons in `evaluation/`; tuning in `models/tune_rf.py`; notes in `docs/` (`hmm_note.md`, `hmm_checklist.md`, `partition_usage.md`).
 
 ---
 

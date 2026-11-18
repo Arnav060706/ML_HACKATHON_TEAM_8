@@ -52,15 +52,17 @@ curl http://<LAPTOP_1_IP>:8000/health
 2. Enter Laptop 1's address in the top input box (e.g. `http://192.168.43.152:8000`).
 3. Click **Connect & Refresh Trips**. The status badge turns green (`Connected to Laptop 1`).
 4. Select any of the 10 evaluator trips from the dropdown.
-5. Click **Reconstruct Route**. The map renders the raw GPS dots (blue), the reconstructed Viterbi route (green), and displays latency and telemetry in the metrics panel.
+5. Click **Reconstruct Route**. The map renders the raw GPS dots (blue), the reconstructed Viterbi route (green) and the snapped points (orange). The **Evaluation Results** panel shows Top-1 accuracy, route continuity, route F1 and route mismatch, plus the classifier-only vs HMM comparison. All are computed on Laptop 1 by `evaluation/evaluate.py`.
+6. Untick **Enable HMM / Viterbi** to show the classifier-only route for comparison.
 
-*Note: If the network drops during evaluation, click **Test with Mock Data** for an instant offline demo!*
+There is no offline or mock mode: every result shown comes from the API on Laptop 1.
 
 ---
 
-## 3. Integration Test Results Across All 10 Evaluator Trips
+## 3. Integration Test Results Across the 10 Student-Test Trips (2:00 PM)
 
-All 10 test trips were successfully validated at 2:00 PM with the Random Forest + HMM/Viterbi engine:
+All 10 student-test trips were validated at 2:00 PM with the Random Forest + HMM/Viterbi engine, before the
+API/UI fixes that added server-side metrics. The current per-trip accuracy is in `results/hmm_vs_classifier.csv`:
 
 | Evaluator Trip ID | Total GPS Fixes | Reconstructed Route Arcs | Polylines | End-to-End Latency |
 | :---: | :---: | :---: | :---: | :---: |

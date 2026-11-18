@@ -9,6 +9,8 @@ networkx
 folium
 matplotlib
 seaborn
+optuna
+markdown
 # API (Laptop 1)
 fastapi
 uvicorn
