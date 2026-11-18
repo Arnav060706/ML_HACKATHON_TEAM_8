@@ -1,0 +1,5 @@
+partition,baseline,top1_all_points,top1_reliable_points
+train,nearest_arc,0.5010819654826622,0.5558636767672467
+train,nearest_plus_heading,0.687837364514411,0.7630364547017463
+student_test,nearest_arc,0.5395093945720251,0.5399885075484512
+student_test,nearest_plus_heading,0.7837160751565762,0.7844120566264431
