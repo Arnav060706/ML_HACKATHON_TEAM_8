@@ -77,9 +77,29 @@ def list_trips(partition: str, data_dir: Path = DATA_DIR) -> list[str]:
     return sorted(p.name for p in root.iterdir() if p.is_dir())
 
 
+def find_trip_dir(trip_id: str, data_dir: Path = DATA_DIR) -> Path:
+    """Locate <data_dir>/<any partition folder>/<trip_id> (train, student_test, evaluator set, ...)."""
+    data_dir = Path(data_dir)
+    for part in sorted(p for p in data_dir.iterdir() if p.is_dir()):
+        if (part / trip_id).is_dir():
+            return part / trip_id
+    if (data_dir / trip_id).is_dir():
+        return data_dir / trip_id
+    raise FileNotFoundError(f"trip {trip_id} not found under {data_dir}")
+
+
 def load_trip(trip_id: str, partition: str, data_dir: Path = DATA_DIR,
               load_route: bool = True) -> Trip:
-    d = Path(data_dir) / partition / trip_id
+    return load_trip_dir(Path(data_dir) / partition / trip_id, load_route=load_route,
+                         partition=partition)
+
+
+def load_trip_dir(d: Path, load_route: bool = True, partition: str | None = None) -> Trip:
+    """Load one trip folder. With load_route=False the .route file is never opened
+    (used by the inference pipeline so reference labels cannot leak into predictions)."""
+    d = Path(d)
+    trip_id = d.name
+    partition = partition or d.parent.name
     track = _read(d / f"{trip_id}.track", 3, np.float64)
     nodes = _read(d / f"{trip_id}.nodes", 2, np.float64)
     arcs = _read(d / f"{trip_id}.arcs", 2, np.int64)
