@@ -80,10 +80,20 @@ def generate_candidates(trip, radius: float = 50.0, k: int | None = None,
                        "dist_m": d[keep], "proj_t": t[keep]})
     df = df.sort_values(["point_idx", "dist_m", "arc_id"], kind="stable")
     if k is not None:
-        # keep the k nearest arcs, but never split a distance tie: a two-way
-        # street is two arcs (u->v, v->u) with IDENTICAL geometry, and cutting
-        # between them would arbitrarily drop the true direction.
-        kth = df.groupby("point_idx", sort=False).dist_m.transform(
-            lambda s: s.iloc[min(k, len(s)) - 1])
-        df = df[df.dist_m <= kth + 1e-6]
+        df = top_k_with_ties(df, k)
     return df.reset_index(drop=True)
+
+
+def top_k_with_ties(df: pd.DataFrame, k: int) -> pd.DataFrame:
+    """Keep the k nearest arcs per point, but never split a distance tie.
+
+    A two-way street is two arcs (u->v and v->u) with IDENTICAL geometry and
+    therefore identical distance; cutting between them would arbitrarily drop
+    the true direction. Expects df sorted by (point_idx, dist_m).
+    """
+    rank = df.groupby("point_idx", sort=False).cumcount().to_numpy()
+    size = df.groupby("point_idx", sort=False).point_idx.transform("size").to_numpy()
+    at_kth = rank == np.minimum(k, size) - 1
+    kth = pd.Series(df.dist_m.to_numpy()[at_kth], index=df.point_idx.to_numpy()[at_kth])
+    kth_per_row = kth.reindex(df.point_idx.to_numpy()).to_numpy()
+    return df[df.dist_m.to_numpy() <= kth_per_row + 1e-6]
