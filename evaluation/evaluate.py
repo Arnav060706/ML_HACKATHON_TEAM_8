@@ -96,4 +96,7 @@ def evaluate(prediction: dict, data_dir: Path = DATA_DIR, trip_dir: Path | None 
     if clf_route is None:
         for k in ("route_precision_len", "route_recall_len", "route_f1_len", "route_mismatch_frac"):
             clf[k] = float("nan")
-    return {"trip_id": prediction["trip_id"], "hmm": hmm, "classifier_only": clf}
+    # plain floats, NaN -> None, so the result is valid JSON for the API
+    clean = lambda d: {k: (None if isinstance(v, float) and np.isnan(v) else  # noqa: E731
+                           (float(v) if isinstance(v, (float, np.floating)) else v)) for k, v in d.items()}
+    return {"trip_id": prediction["trip_id"], "hmm": clean(hmm), "classifier_only": clean(clf)}
