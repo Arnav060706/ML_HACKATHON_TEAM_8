@@ -12,7 +12,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-PROJECT_DIR = r"C:\Users\Arnav Sharma\.gemini\antigravity\scratch\ML_HACKATHON_TEAM_8"
+# repo root = the folder above results/ (works on any machine)
+PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CSV_PATH = os.path.join(PROJECT_DIR, "results", "model_comparison.csv")
 RESULTS_DIR = os.path.join(PROJECT_DIR, "results")
 
