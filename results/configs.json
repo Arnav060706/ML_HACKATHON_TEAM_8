@@ -1,0 +1,191 @@
+{
+  "seed": 42,
+  "threshold": 0.5,
+  "fast_mode": false,
+  "features": [
+    "dist_m",
+    "dist_rank",
+    "dist_minus_min",
+    "n_cands",
+    "proj_t",
+    "at_endpoint",
+    "heading_diff",
+    "heading_valid",
+    "speed_mps",
+    "seg_len_m",
+    "dt_prev",
+    "dt_next",
+    "dist_prev_pt",
+    "dist_next_pt",
+    "from_in_deg",
+    "to_out_deg",
+    "twoway"
+  ],
+  "excluded_columns": [
+    "trip_id",
+    "partition",
+    "point_idx",
+    "arc_id",
+    "t",
+    "label",
+    "label_reliable"
+  ],
+  "cv_scheme": "GroupKFold(n_splits=5) by trip_id, no shuffle; metrics averaged over folds (confusion counts are fold means)",
+  "refit": "all training trips -> evaluated on 10 student-test trips",
+  "fit_on_label_reliable_only": true,
+  "eval_uses_all_rows": true,
+  "train_metrics_rows": "random subsample of <= 200000 fitted rows (seed 42)",
+  "data_files": [
+    "candidates_train.parquet",
+    "candidates_student_test.parquet",
+    "points_train.parquet",
+    "points_student_test.parquet"
+  ],
+  "n_train_trips": 80,
+  "n_test_trips": 10,
+  "models": {
+    "logreg": {
+      "family": "linear",
+      "key_config": "StandardScaler + LogisticRegression",
+      "max_fit_rows": null,
+      "params": {
+        "C": 1.0,
+        "class_weight": null,
+        "dual": false,
+        "fit_intercept": true,
+        "intercept_scaling": 1,
+        "l1_ratio": null,
+        "max_iter": 1000,
+        "multi_class": "deprecated",
+        "n_jobs": null,
+        "penalty": "l2",
+        "random_state": 42,
+        "solver": "lbfgs",
+        "tol": 0.0001,
+        "verbose": 0,
+        "warm_start": false
+      }
+    },
+    "knn": {
+      "family": "instance-based",
+      "key_config": "StandardScaler + KNN k=25, fit on random subsample <= 100000 rows",
+      "max_fit_rows": 100000,
+      "params": {
+        "algorithm": "auto",
+        "leaf_size": 30,
+        "metric": "minkowski",
+        "metric_params": null,
+        "n_jobs": -1,
+        "n_neighbors": 25,
+        "p": 2,
+        "weights": "uniform"
+      }
+    },
+    "rf": {
+      "family": "bagged trees",
+      "key_config": "RandomForest (no scaling needed)",
+      "max_fit_rows": null,
+      "params": {
+        "bootstrap": true,
+        "ccp_alpha": 0.0,
+        "class_weight": null,
+        "criterion": "gini",
+        "max_depth": 18,
+        "max_features": "sqrt",
+        "max_leaf_nodes": null,
+        "max_samples": null,
+        "min_impurity_decrease": 0.0,
+        "min_samples_leaf": 5,
+        "min_samples_split": 2,
+        "min_weight_fraction_leaf": 0.0,
+        "monotonic_cst": null,
+        "n_estimators": 100,
+        "n_jobs": -1,
+        "oob_score": false,
+        "random_state": 42,
+        "verbose": 0,
+        "warm_start": false
+      }
+    },
+    "hist_gradient_boosting": {
+      "family": "boosted trees",
+      "key_config": "HistGradientBoostingClassifier (lightgbm not installed) (no scaling needed)",
+      "max_fit_rows": null,
+      "params": {
+        "categorical_features": "warn",
+        "class_weight": null,
+        "early_stopping": false,
+        "interaction_cst": null,
+        "l2_regularization": 0.0,
+        "learning_rate": 0.1,
+        "loss": "log_loss",
+        "max_bins": 255,
+        "max_depth": null,
+        "max_features": 1.0,
+        "max_iter": 200,
+        "max_leaf_nodes": 31,
+        "min_samples_leaf": 20,
+        "monotonic_cst": null,
+        "n_iter_no_change": 10,
+        "random_state": 42,
+        "scoring": "loss",
+        "tol": 1e-07,
+        "validation_fraction": 0.1,
+        "verbose": 0,
+        "warm_start": false
+      }
+    },
+    "mlp": {
+      "family": "neural network",
+      "key_config": "StandardScaler + MLP (64,32), early_stopping, max_iter=200, fit on random subsample <= 400000 rows (time cap)",
+      "max_fit_rows": 400000,
+      "params": {
+        "activation": "relu",
+        "alpha": 0.0001,
+        "batch_size": "auto",
+        "beta_1": 0.9,
+        "beta_2": 0.999,
+        "early_stopping": true,
+        "epsilon": 1e-08,
+        "hidden_layer_sizes": [
+          64,
+          32
+        ],
+        "learning_rate": "constant",
+        "learning_rate_init": 0.001,
+        "max_fun": 15000,
+        "max_iter": 200,
+        "momentum": 0.9,
+        "n_iter_no_change": 10,
+        "nesterovs_momentum": true,
+        "power_t": 0.5,
+        "random_state": 42,
+        "shuffle": true,
+        "solver": "adam",
+        "tol": 0.0001,
+        "validation_fraction": 0.1,
+        "verbose": false,
+        "warm_start": false
+      }
+    }
+  },
+  "baselines": {
+    "baseline_nearest_arc": "predict candidate with dist_rank==0",
+    "baseline_nearest_arc_heading": "nearest candidate (dist_m) among those with heading_diff<=90 or heading invalid; wrong-way candidates only if nothing else is left",
+    "baseline_A_rule": "part A's rule: lowest dist_m + 0.5*heading_diff per point (heading_diff=90 when heading invalid)"
+  },
+  "baselines_note": "untrained rules (no fit), not one of the five models",
+  "row_level_metrics": "unsuffixed = label_reliable==1 rows; *_all = all rows",
+  "top1_denominators": "points_train / points_student_test parquet (points without a true candidate count as misses); top1_reliable_points uses label_reliable==1 points",
+  "removed_from_training": {
+    "train_rows_total": 1396401,
+    "train_rows_removed": 80626,
+    "train_rows_removed_frac": 0.05773842900427599,
+    "train_points_total": 208417,
+    "train_points_removed": 20540,
+    "train_points_removed_frac": 0.09855242134758681,
+    "test_rows_unreliable": 98,
+    "test_points_unreliable": 17,
+    "test_points_total": 19160
+  }
+}

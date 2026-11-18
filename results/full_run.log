@@ -1,0 +1,47 @@
+Features (17): ['dist_m', 'dist_rank', 'dist_minus_min', 'n_cands', 'proj_t', 'at_endpoint', 'heading_diff', 'heading_valid', 'speed_mps', 'seg_len_m', 'dt_prev', 'dt_next', 'dist_prev_pt', 'dist_next_pt', 'from_in_deg', 'to_out_deg', 'twoway']
+train: 80 trips, 1,396,401 rows | student_test: 10 trips, 135,725 rows
+GBM family uses: HistGradientBoostingClassifier (lightgbm not installed) (no scaling needed)
+Removed from training (label_reliable==0): {"train_rows_total": 1396401, "train_rows_removed": 80626, "train_rows_removed_frac": 0.05773842900427599, "train_points_total": 208417, "train_points_removed": 20540, "train_points_removed_frac": 0.09855242134758681, "test_rows_unreliable": 98, "test_points_unreliable": 17, "test_points_total": 19160}
+[cv] logreg                       fold 0: macroF1=0.8832 top1=0.8100 fit=2.1s pred=0.1s (fold wall 3.5s)
+[cv] logreg                       fold 1: macroF1=0.9165 top1=0.5635 fit=1.8s pred=0.1s (fold wall 3.4s)
+[cv] logreg                       fold 2: macroF1=0.9199 top1=0.8757 fit=1.7s pred=0.1s (fold wall 3.2s)
+[cv] logreg                       fold 3: macroF1=0.8809 top1=0.7226 fit=2.1s pred=0.0s (fold wall 3.6s)
+[cv] logreg                       fold 4: macroF1=0.8979 top1=0.8107 fit=1.6s pred=0.1s (fold wall 3.1s)
+[test] logreg                      : macroF1=0.9103 top1_all=0.8539 top1_rel=0.8547 fit=2.2s
+[cv] knn                          fold 0: macroF1=0.8792 top1=0.7999 fit=0.0s pred=23.4s (fold wall 43.6s)
+[cv] knn                          fold 1: macroF1=0.9132 top1=0.5637 fit=0.1s pred=25.9s (fold wall 45.6s)
+[cv] knn                          fold 2: macroF1=0.9187 top1=0.8692 fit=0.0s pred=26.9s (fold wall 46.7s)
+[cv] knn                          fold 3: macroF1=0.8778 top1=0.7125 fit=0.0s pred=25.3s (fold wall 44.4s)
+[cv] knn                          fold 4: macroF1=0.8986 top1=0.8101 fit=0.0s pred=26.0s (fold wall 45.4s)
+[test] knn                         : macroF1=0.9108 top1_all=0.8557 top1_rel=0.8565 fit=0.0s
+[cv] rf                           fold 0: macroF1=0.8944 top1=0.8190 fit=69.3s pred=0.5s (fold wall 71.7s)
+[cv] rf                           fold 1: macroF1=0.9267 top1=0.5684 fit=68.8s pred=0.4s (fold wall 71.1s)
+[cv] rf                           fold 2: macroF1=0.9226 top1=0.8720 fit=65.1s pred=0.5s (fold wall 67.5s)
+[cv] rf                           fold 3: macroF1=0.8880 top1=0.7182 fit=70.6s pred=0.5s (fold wall 73.1s)
+[cv] rf                           fold 4: macroF1=0.9047 top1=0.8218 fit=64.4s pred=0.5s (fold wall 66.7s)
+[test] rf                          : macroF1=0.9180 top1_all=0.8636 top1_rel=0.8643 fit=91.0s
+[cv] lightgbm                     fold 0: macroF1=0.8896 top1=0.8108 fit=19.6s pred=0.7s (fold wall 22.2s)
+[cv] lightgbm                     fold 1: macroF1=0.9291 top1=0.5750 fit=21.4s pred=0.7s (fold wall 23.7s)
+[cv] lightgbm                     fold 2: macroF1=0.9186 top1=0.8668 fit=20.0s pred=1.0s (fold wall 22.8s)
+[cv] lightgbm                     fold 3: macroF1=0.8878 top1=0.7185 fit=20.6s pred=0.7s (fold wall 23.1s)
+[cv] lightgbm                     fold 4: macroF1=0.9025 top1=0.8193 fit=20.0s pred=0.6s (fold wall 22.5s)
+[test] lightgbm                    : macroF1=0.9161 top1_all=0.8602 top1_rel=0.8609 fit=27.3s
+[cv] mlp                          fold 0: macroF1=0.8818 top1=0.8028 fit=111.2s pred=0.2s (fold wall 113.4s)
+[cv] mlp                          fold 1: macroF1=0.9152 top1=0.5691 fit=98.4s pred=0.1s (fold wall 99.7s)
+[cv] mlp                          fold 2: macroF1=0.9019 top1=0.8402 fit=58.3s pred=0.1s (fold wall 59.5s)
+[cv] mlp                          fold 3: macroF1=0.8811 top1=0.7151 fit=55.8s pred=0.1s (fold wall 56.9s)
+[cv] mlp                          fold 4: macroF1=0.9000 top1=0.8207 fit=53.9s pred=0.1s (fold wall 55.1s)
+[test] mlp                         : macroF1=0.9148 top1_all=0.8641 top1_rel=0.8649 fit=66.4s
+[cv] baseline_nearest_arc         fold 0: macroF1=0.7714 top1=0.6058 fit=0.0s pred=0.0s (fold wall 1.0s)
+[cv] baseline_nearest_arc         fold 1: macroF1=0.7831 top1=0.4071 fit=0.0s pred=0.0s (fold wall 0.9s)
+[cv] baseline_nearest_arc         fold 2: macroF1=0.7083 top1=0.5106 fit=0.0s pred=0.0s (fold wall 0.9s)
+[cv] baseline_nearest_arc         fold 3: macroF1=0.7274 top1=0.4718 fit=0.0s pred=0.0s (fold wall 0.9s)
+[cv] baseline_nearest_arc         fold 4: macroF1=0.7338 top1=0.5243 fit=0.0s pred=0.0s (fold wall 0.9s)
+[test] baseline_nearest_arc        : macroF1=0.7326 top1_all=0.5395 top1_rel=0.5400 fit=0.0s
+[cv] baseline_nearest_arc_heading fold 0: macroF1=0.8758 top1=0.7835 fit=0.0s pred=0.1s (fold wall 0.9s)
+[cv] baseline_nearest_arc_heading fold 1: macroF1=0.9073 top1=0.5463 fit=0.0s pred=0.1s (fold wall 1.0s)
+[cv] baseline_nearest_arc_heading fold 2: macroF1=0.9198 top1=0.8643 fit=0.0s pred=0.1s (fold wall 1.1s)
+[cv] baseline_nearest_arc_heading fold 3: macroF1=0.8720 top1=0.6993 fit=0.0s pred=0.1s (fold wall 0.9s)
+[cv] baseline_nearest_arc_heading fold 4: macroF1=0.8975 top1=0.7993 fit=0.0s pred=0.1s (fold wall 0.9s)
+[test] baseline_nearest_arc_heading: macroF1=0.9068 top1_all=0.8382 top1_rel=0.8389 fit=0.0s
+Wrote outputs to D:\MyDocuments\sem5\ML\ML_hack_B\results
