@@ -61,8 +61,27 @@ Set-Content -Path $cfg -Encoding ASCII -Value ("// written by LAPTOP2_START_DEMO
 Write-Host "    OK" -ForegroundColor Green
 
 Write-Host "[4] Opening the UI" -ForegroundColor Cyan
-if ($NoBrowser) { Write-Host "    skipped (-NoBrowser): open $ui" -ForegroundColor Yellow }
-else { Start-Process $ui; Write-Host "    OK   the UI connects automatically and lists the trips" -ForegroundColor Green }
+# Serve the UI over http from THIS laptop (127.0.0.1:8080). OpenStreetMap blocks map tiles for pages
+# opened as local files (no Referer), so http is needed for the OSM map. Without Python the file is
+# opened directly and the UI uses the Esri street map instead.
+$url = $null
+$py = Get-Command python -ErrorAction SilentlyContinue
+if ($py) {
+    $up = $false
+    try { Invoke-WebRequest -Uri "http://127.0.0.1:8080/ui/index.html" -UseBasicParsing -TimeoutSec 2 | Out-Null; $up = $true } catch {}
+    if (-not $up) {
+        Start-Process -FilePath $py.Source -ArgumentList "-m", "http.server", "8080", "--bind", "127.0.0.1" `
+            -WorkingDirectory $Repo -WindowStyle Minimized
+        for ($k = 0; $k -lt 20 -and -not $up; $k++) {
+            Start-Sleep -Milliseconds 300
+            try { Invoke-WebRequest -Uri "http://127.0.0.1:8080/ui/index.html" -UseBasicParsing -TimeoutSec 2 | Out-Null; $up = $true } catch {}
+        }
+    }
+    if ($up) { $url = "http://127.0.0.1:8080/ui/index.html"; Write-Host "    OK   UI served locally at $url (minimised 'python' window - leave it open)" -ForegroundColor Green }
+}
+if (-not $url) { $url = $ui; Write-Host "    WARN no local web server - opening the file directly (Esri map instead of OpenStreetMap)" -ForegroundColor Yellow }
+if ($NoBrowser) { Write-Host "    skipped (-NoBrowser): open $url" -ForegroundColor Yellow }
+else { Start-Process $url; Write-Host "    OK   the UI connects automatically and lists the trips" -ForegroundColor Green }
 
 Write-Host ""
 Write-Host "Demo: pick a trip -> Reconstruct Route -> show metrics -> show Laptop 1's console." -ForegroundColor White

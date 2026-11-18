@@ -187,6 +187,7 @@ Good trips to show first: **00000015** (largest HMM gain, 59 % → 92 %), **0000
 | UI badge "Offline / Unreachable" | wrong address in the box | must be `http://IP:8000`, with `http://` and port |
 | Dropdown empty | wrong partition | `/health` shows `partition` and `n_trips`; restart with `run_api.bat evaluator_test` |
 | Map grey / no tiles | Laptop 2 has no internet | the hotspot needs mobile data (tiles come from OpenStreetMap) |
+| Map tiles say **"403 Access blocked"** | UI opened as a local file: OpenStreetMap blocks tile requests without a Referer | open the UI with `LAPTOP2_START_DEMO.bat` (serves it at `http://127.0.0.1:8080`); a local-file UI now uses the Esri street map automatically |
 | First request slow | warm-up skipped | normal requests take 0.3–2 s; wait for `API ready` before demoing |
 | HTTP 404 for a trip | trip not in the served folder | check the folder name and contents; `GET /trips` lists what is served |
 

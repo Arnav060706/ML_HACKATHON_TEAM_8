@@ -333,11 +333,31 @@
         const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; OpenStreetMap'
-        }).addTo(map);
+        });
 
         const cartoLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
             maxZoom: 19,
             attribution: '&copy; CartoDB Positron'
+        });
+
+        // Backup street map (Esri). OpenStreetMap's servers return "403 Access blocked" when the page
+        // is opened as a local file (no Referer header); the Laptop 2 launcher serves the UI over
+        // http to avoid that, and this layer takes over automatically if OSM tiles keep failing.
+        const esriStreets = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 19,
+            attribution: 'Tiles &copy; Esri'
+        });
+        // OSM serves its "Access blocked" notice as a normal image (no tile error is raised), so the
+        // choice is made up front: local file -> Esri; served over http(s) -> OpenStreetMap.
+        if (window.location.protocol === 'file:') { esriStreets.addTo(map); } else { osmLayer.addTo(map); }
+        let osmErrors = 0, switchedToBackup = false;
+        osmLayer.on('tileerror', () => {   // network failures of OSM -> fall back as well
+            osmErrors += 1;
+            if (!switchedToBackup && osmErrors >= 4) {
+                switchedToBackup = true;
+                map.removeLayer(osmLayer);
+                esriStreets.addTo(map);
+            }
         });
 
         // Layer Groups
@@ -349,6 +369,7 @@
         // Add Layer Controls
         L.control.layers({
             "OpenStreetMap": osmLayer,
+            "Esri Street Map (backup)": esriStreets,
             "CartoDB Positron": cartoLight
         }, {
             "Reconstructed Route (Green)": routeLayer,
