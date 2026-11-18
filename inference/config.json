@@ -1,0 +1,9 @@
+{
+  "model_path": "models/saved/rf.joblib",
+  "fallback_model_path": "models/saved/rf.joblib",
+  "radius_m": 100.0,
+  "top_k": 8,
+  "beta": 10.0,
+  "gap_s": 60.0,
+  "note": "beta and gap_s are placeholders until evaluation/tune_hmm.py has run"
+}
