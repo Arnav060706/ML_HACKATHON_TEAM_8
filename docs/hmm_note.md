@@ -103,26 +103,32 @@ directly connected (`reconstruct_route`).
   reconstructed route contains many spurious detours (precision 0.66). The HMM removes them.
   Recall is ~1 for both because the true road is almost always among the candidates.
 
-## 7b. Final deployed model: B's Optuna-tuned RF (`results/hmm_model_comparison.csv`)
+## 7b. Final deployed model (`results/tuning_comparison.csv`, `results/hmm_model_comparison.csv`)
 
-The API now uses **`models/saved/rf_tuned.joblib`**: B's best Optuna parameters
-(`n_estimators=138, max_depth=30, min_samples_leaf=18, max_features=0.5, class_weight=None`),
-refitted on all 80 train trips (reliable rows), 51.6 MB. The compact RF is kept as fallback.
-Student-test, same candidates, β = 5 m, gap = 60 s:
+**Decision: the selected default RF configuration, deployed in its memory-safe form (compact RF,
+`min_samples_leaf = 50`).** `inference/config.json` -> `models/saved/rf_compact.joblib`.
+
+* **Tuning did not help (B's 5-fold comparison, train):** CV macro-F1 0.9070 tuned vs 0.9073
+  default, with worse CV log loss (0.1116 vs 0.1081) and slower inference. So the default
+  configuration stays.
+* **The default RF (leaf 5) cannot be loaded safely on the API laptop:** several GB of RAM; it
+  froze an 8 GB laptop. Optuna's importance shows `min_samples_leaf` has importance < 0.01, so
+  raising it to 50 does not change accuracy. Train (OOF) classifier Top-1 on reliable fixes:
+  0.8376 (leaf 50) vs CV 0.8365 (default). Size 19.5 MB; fastest (0.27 s / trip).
+* β = 5 m / gap 60 s were tuned on **this** model's out-of-fold probabilities, so the decoder and
+  the emission model are consistent.
+
+Student-test, same candidates, β = 5 m, gap = 60 s (for completeness; not used to choose):
 
 | Emission model | Classifier-only Top-1 | **HMM Top-1** | HMM continuity | HMM route F1 | Classifier macro-F1 | Log loss | Predict s / trip |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Compact RF (leaf 50) | 0.8603 | 0.9339 | 0.9819 | 0.9729 | 0.9177 | 0.0974 | 0.27 |
-| **Tuned RF (deployed)** | **0.8644** | **0.9329** | 0.9816 | 0.9726 | **0.9193** | 0.0995 | 0.82 |
+| **Compact RF = default config, leaf 50 (deployed)** | 0.8603 | **0.9339** | 0.9819 | 0.9729 | 0.9177 | 0.0974 | 0.27 |
+| Optuna-tuned RF (leaf 18, 138 trees, depth 30, max_features 0.5) | 0.8644 | 0.9329 | 0.9816 | 0.9726 | 0.9193 | 0.0995 | 0.82 |
 
-* Tuning improves the **classifier** (Top-1 +0.4 pp, macro-F1 +0.0016).
-* **After the HMM the two are tied** (−0.1 pp = ~19 of 19,160 fixes, within noise): the decoder
-  already corrects most of the errors the better classifier fixes, and the tuned RF's
-  probabilities are slightly less calibrated (log loss 0.0995 vs 0.0974). The HMM consumes
-  probabilities, not just rankings.
-* β / gap_s were **not re-tuned** for the tuned model (time limit). They were chosen on train OOF
-  probabilities of the same RF family, and β is a distance scale (metres), so it transfers.
-* The failure case below is unchanged with the tuned model (trip 77, arcs 181/6394).
+* After the HMM the two are tied (0.1 pp ≈ 19 of 19,160 fixes): the decoder already fixes most of
+  what a slightly better classifier fixes, and the HMM uses probabilities (the tuned RF is slightly
+  less calibrated).
+* The failure case below is the same with both models (trip 77, arcs 181/6394).
 
 **Overfitting check.** β was selected on train trips only (out-of-fold probabilities); student-test
 was never used to choose anything. Train (OOF) HMM Top-1 on reliable fixes is 0.919 and student-test
