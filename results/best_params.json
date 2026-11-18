@@ -1,0 +1,19 @@
+{
+  "best_params": {
+    "n_estimators": 138,
+    "max_depth": 30,
+    "min_samples_leaf": 18,
+    "max_features": 0.5,
+    "class_weight": null
+  },
+  "best_cv_macro_f1_3fold_30pct": 0.9087116492071016,
+  "best_cv_log_loss_3fold_30pct": 0.11038294432290736,
+  "best_cv_top1_all_points_3fold_30pct": 0.7579846642551272,
+  "completed_trials": 19,
+  "pruned_trials": 12,
+  "total_trials": 31,
+  "search_seconds": 1856.5744122000178,
+  "seed": 42,
+  "search_folds": 3,
+  "fit_fraction": 0.3
+}
