@@ -103,6 +103,32 @@ directly connected (`reconstruct_route`).
   reconstructed route contains many spurious detours (precision 0.66). The HMM removes them.
   Recall is ~1 for both because the true road is almost always among the candidates.
 
+## 7b. Final deployed model: B's Optuna-tuned RF (`results/hmm_model_comparison.csv`)
+
+The API now uses **`models/saved/rf_tuned.joblib`**: B's best Optuna parameters
+(`n_estimators=138, max_depth=30, min_samples_leaf=18, max_features=0.5, class_weight=None`),
+refitted on all 80 train trips (reliable rows), 51.6 MB. The compact RF is kept as fallback.
+Student-test, same candidates, β = 5 m, gap = 60 s:
+
+| Emission model | Classifier-only Top-1 | **HMM Top-1** | HMM continuity | HMM route F1 | Classifier macro-F1 | Log loss | Predict s / trip |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Compact RF (leaf 50) | 0.8603 | 0.9339 | 0.9819 | 0.9729 | 0.9177 | 0.0974 | 0.27 |
+| **Tuned RF (deployed)** | **0.8644** | **0.9329** | 0.9816 | 0.9726 | **0.9193** | 0.0995 | 0.82 |
+
+* Tuning improves the **classifier** (Top-1 +0.4 pp, macro-F1 +0.0016).
+* **After the HMM the two are tied** (−0.1 pp = ~19 of 19,160 fixes, within noise): the decoder
+  already corrects most of the errors the better classifier fixes, and the tuned RF's
+  probabilities are slightly less calibrated (log loss 0.0995 vs 0.0974). The HMM consumes
+  probabilities, not just rankings.
+* β / gap_s were **not re-tuned** for the tuned model (time limit). They were chosen on train OOF
+  probabilities of the same RF family, and β is a distance scale (metres), so it transfers.
+* The failure case below is unchanged with the tuned model (trip 77, arcs 181/6394).
+
+**Overfitting check.** β was selected on train trips only (out-of-fold probabilities); student-test
+was never used to choose anything. Train (OOF) HMM Top-1 on reliable fixes is 0.919 and student-test
+is 0.934: no gap, so no sign of overfitting. On student-test alone β = 2 would give 0.941. We
+deliberately did **not** use it, because that would be tuning on the test set.
+
 ## 8. A case where the HMM did not help (`results/hmm_failure_cases.csv`)
 
 **Trip 00000077, fixes 865–947** (three windows of 5–6 fixes): classifier right, HMM wrong.
@@ -126,5 +152,6 @@ directly connected (`reconstruct_route`).
 ```bash
 python models/oof_probabilities.py --params models/rf_compact_params.json --name rf_compact   # ~9 min
 python evaluation/tune_hmm.py --probs rf_compact     # ~2 min; writes beta/gap_s to inference/config.json
-python evaluation/compare_hmm.py                     # student-test comparison CSV + failure cases
+python evaluation/compare_hmm.py                     # student-test comparison CSV + failure cases (uses inference/config.json model)
+python evaluation/compare_models.py                  # compact vs tuned RF as emission model
 ```
