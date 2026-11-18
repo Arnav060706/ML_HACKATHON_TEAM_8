@@ -77,6 +77,11 @@ directly connected (`reconstruct_route`).
   any β, while β moves it by 2.6 pp on train. Small β trusts the road network more, large β trusts
   the classifier more. Student-test alone would prefer β = 2 (0.9406 vs 0.9348); we kept the
   train-chosen value so the test set was not used for tuning. Plot: `results/hmm_tuning.png`.
+* **Follow-up experiment** (`results/hmm_emission_experiment.csv`): a finer grid β ∈ {2, …, 7}
+  confirms β = 5 on train. **Normalising emissions per fix** (p / Σ p over the fix's candidates)
+  gives *identical* results. This is expected: it adds the same constant to every state's score
+  at that time step, so the Viterbi argmax cannot change. The emission scale is effectively
+  controlled by β alone.
 
 ## 7. Did the HMM help? Student-test, 10 trips (`results/hmm_vs_classifier.csv`)
 
