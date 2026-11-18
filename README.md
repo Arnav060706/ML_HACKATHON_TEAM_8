@@ -21,9 +21,28 @@ The repository is organized into modular components adhering strictly to the hac
 
 ```
 ML_HACKATHON_TEAM_8/
+├── LAPTOP1_START_DEMO.bat             # One-click Laptop 1: checks, firewall, pre-flight, IP, API
+├── LAPTOP2_START_DEMO.bat             # One-click Laptop 2: connection test, opens the UI
+├── run_api.bat                        # Minimal Laptop 1 launcher (pre-flight + API)
 ├── api/                               # Backend FastAPI application (Laptop 1)
-│   ├── app.py                         # API endpoints (/health, /trips, /predict)
+│   ├── app.py                         # /health, /trips (folder scan), /predict (+ server-side metrics)
 │   └── README.md                      # API deployment instructions
+├── demo/                              # PowerShell scripts behind the two launchers
+├── docs/                              # DEMO_GUIDE.md, hmm_note.md, hmm_checklist.md, partition_usage.md, EDA report
+├── inference/                         # Prediction pipeline (never reads .route)
+│   ├── predict.py                     # predict_trip(): raw files -> candidates -> RF -> HMM -> route
+│   ├── hmm.py                         # Lattice, emissions, Newson-Krumm transitions, gap split, Viterbi
+│   ├── road_graph.py                  # Directed road graph, batched cutoff shortest paths
+│   ├── config.json                    # Deployed model path + HMM configuration (beta, gap)
+│   └── README.md                      # predict_trip / evaluate contract
+├── evaluation/                        # The only code that reads .route
+│   ├── evaluate.py                    # Top-1, continuity, route F1, mismatch (server-side)
+│   ├── tune_hmm.py                    # beta x gap grid on train (out-of-fold probabilities)
+│   ├── compare_hmm.py                 # classifier-only vs classifier + HMM per partition
+│   ├── compare_models.py              # compact vs tuned RF as emission model
+│   ├── plot_hmm_comparison.py         # per-trip comparison figure
+│   └── report_maps.py                 # Folium maps: GPS, network, reference, predicted route
+├── scripts/check_trips.py             # Pre-flight check of a trip folder
 ├── data/
 │   └── processed/                     # Engineered candidate and point tables (Parquet)
 ├── data_processing/                   # Raw trip loader and spatial projection pipeline
@@ -54,9 +73,14 @@ ML_HACKATHON_TEAM_8/
 │   ├── miss_rate_sweep.py             # Sweep over radius R and top-k
 │   ├── label_check_map.py             # Visual label validation maps
 │   └── validate_tables.py             # Table schema and integrity validation
-├── models/                            # Model training and comparison (Task B)
+├── models/                            # Model training, tuning and comparison
 │   ├── run_experiments.py             # GroupKFold harness: 5 model families + rule baselines
 │   ├── select_model.py                # Evidence-based model selection + confusion matrices
+│   ├── tune_rf.py                     # Bayesian (Optuna TPE) tuning of the Random Forest
+│   ├── oof_probabilities.py           # Out-of-fold RF probabilities + final model refit
+│   ├── rf_compact_params.json         # Deployed RF (default config, min_samples_leaf 50)
+│   ├── rf_tuned_params.json           # Optuna best parameters
+│   ├── saved/                         # rf_compact.joblib (deployed, 19.5 MB), rf_tuned.joblib
 │   └── README.md                      # Protocol, models, metrics and selection
 ├── results/                           # Experiment outputs, tables, and metric summaries
 │   ├── baseline_top1.csv              # Distance and heading heuristic baselines
@@ -74,7 +98,12 @@ ML_HACKATHON_TEAM_8/
 │   ├── mlp_loss_curve.png             # MLP training loss (only model with epochs)
 │   ├── *_comparison.png               # CV macro-F1, test Top-1/macro-F1, log loss plots
 │   ├── section_3_model_comparison_table.md  # Report Section 3.1 table
-│   └── maps/                          # Ground truth alignment verification maps
+│   ├── optuna_trials.csv, best_params.json, optuna_*.png, tuning_comparison.csv  # Bayesian tuning
+│   ├── hmm_tuning*.csv / .png         # beta x gap tuning
+│   ├── hmm_vs_classifier*.csv / .png  # classifier vs HMM (student_test; *_evaluator_test = final run)
+│   ├── hmm_failure_cases*.csv         # where the HMM did not help
+│   ├── hmm_model_comparison.csv       # compact vs tuned RF inside the HMM
+│   └── maps/                          # label-check maps + report maps (predicted vs reference route)
 ├── ui/                                # Evaluator user interface (Laptop 2)
 │   ├── index.html                     # Standalone browser interface for route testing
 │   └── README.md                      # UI setup and evaluation instructions
@@ -102,12 +131,21 @@ ML_HACKATHON_TEAM_8/
 ### Trajectory Quality & Tracking Gaps
 * **Data Integrity:** **0 missing values (NaNs)**, **0 timestamp inversions**, and **0 duplicate timestamps** across 227,577 observations.
 * **Sampling Rate:** Nominally 1 Hz (**94.32%** of steps are exactly $1.0\text{ s}$).
-* **Pause Handling:** Tracking pauses up to 42.5 hours exist in several trips. They are exposed to the classifier through the `dt_prev` / `dt_next` features. The planned HMM decoder will split the Viterbi chain at large gaps (threshold to be tuned on train/student_test).
+* **Pause Handling:** Tracking pauses up to 42.5 hours exist in several trips. They are exposed to the classifier through the `dt_prev` / `dt_next` features, and the HMM splits the Viterbi chain when Δt > 60 s.
 
 ### Model Training & Selection (Task B)
 * Candidate-level binary classification, **GroupKFold(5) by `trip_id`** on the 80 training trips, refit on all 80, evaluated on the 10 student-test trips. Seed 42; scalers inside pipelines; fitted on `label_reliable == 1` rows.
 * Five algorithm families: Logistic Regression, KNN, Random Forest, HistGradientBoosting, MLP (+ three untrained rule baselines).
 * **Selected model: Random Forest** (`results/model_selection.md`). It is best on CV Top-1 (0.8365), CV log loss (0.1081, best in 5/5 folds) and CV macro-F1 (0.9073 ± 0.017). On student-test: Top-1 0.8636, macro-F1 0.9180, log loss 0.0966.
+
+### Bayesian Tuning
+* Optuna TPE (seed 42) + MedianPruner, 31 trials (19 completed, 12 pruned), 3-fold GroupKFold on a 30% sample. Best: `n_estimators 138, max_depth 30, min_samples_leaf 18, max_features 0.5`.
+* Confirmed with the full 5-fold protocol: **no gain** (CV macro-F1 0.9070 tuned vs 0.9073 default; `results/tuning_comparison.csv`). The default configuration is kept and deployed with `min_samples_leaf = 50` (19.5 MB instead of several GB; Optuna importance of `min_samples_leaf` < 0.01).
+
+### HMM / Viterbi Route Reconstruction
+* Hidden states = candidate arcs; emission = log RF probability (floor 1e-6); transition = exp(−|d_net − d_gps| / β) with cutoff shortest paths (floor 1e-12); chain split at gaps > 60 s or where no route is possible.
+* β = 5 m and gap = 60 s tuned on train with out-of-fold probabilities (`results/hmm_tuning.csv`).
+* Top-1 accuracy: **student-test 0.860 → 0.934**, **evaluator-test 0.805 → 0.949** (frozen pipeline, run once at the end); route continuity 0.98, route F1 0.97.
 
 ---
 
@@ -144,6 +182,21 @@ python results/plot_model_comparison.py          # comparison plots + Section 3.
 python models/select_model.py                    # model_selection.md + confusion matrices
 ```
 
+### Bayesian Tuning
+```bash
+python models/tune_rf.py                         # Optuna TPE search (timeout 1800 s) + tuned vs untuned comparison
+```
+
+### HMM / Viterbi
+```bash
+python models/oof_probabilities.py --params models/rf_compact_params.json --name rf_compact  # OOF probs + deployed model (~9 min)
+python evaluation/tune_hmm.py --probs rf_compact   # beta x gap grid on train -> inference/config.json
+python evaluation/compare_hmm.py                   # classifier vs HMM on student_test
+python evaluation/plot_hmm_comparison.py           # per-trip figure
+python evaluation/report_maps.py 00000040 00000077 # Folium maps for the report
+python inference/predict.py 00000000               # predict one trip from the command line
+```
+
 See `docs/partition_usage.md` for which dataset partition every analysis uses.
 
 ---
@@ -152,8 +205,11 @@ See `docs/partition_usage.md` for which dataset partition every analysis uses.
 
 | Role | Machine | Responsibilities | Command |
 | :--- | :--- | :--- | :--- |
-| **Model & API** | Laptop 1 | Hosts trained classifier, HMM/Viterbi decoder, and road network cache | `uvicorn api.app:app --host 0.0.0.0 --port 8000` |
-| **Evaluator UI** | Laptop 2 | Displays the 10 evaluation trips, triggers route reconstruction, renders telemetry | Open `ui/index.html` in browser |
+| **Model & API** | Laptop 1 | Hosts the trained classifier, HMM/Viterbi decoder and server-side evaluation | double-click `LAPTOP1_START_DEMO.bat` (or `uvicorn api.app:app --host 0.0.0.0 --port 8000` with `PATHSNAP_TRIPS_PARTITION=evaluator_test`) |
+| **Evaluator UI** | Laptop 2 | Lists the 10 evaluation trips from the API, sends the selected trip, shows route and metrics | double-click `LAPTOP2_START_DEMO.bat` and enter Laptop 1's IP |
+
+Evaluator trips go in `<data folder>/evaluator_test/<trip_id>/` on Laptop 1. Step-by-step guide and
+troubleshooting: `docs/DEMO_GUIDE.md`.
 
 ---
 
@@ -162,4 +218,5 @@ See `docs/partition_usage.md` for which dataset partition every analysis uses.
 * **Institution:** PES University, RR Campus
 * **Course:** UE24CS352A — Machine Learning
 * **Team:** Team 8
-* **Commit History:** Developed and authored independently by team members without external code borrowing, hardcoded evaluation answers, or data leakage across partitions.
+* **Commit History:** Developed by the team members, with no code shared with other teams, no hardcoded evaluation answers and no data leakage across partitions.
+* **AI assistance:** AI coding assistance (Claude Code) was used and is disclosed in the technical report (AI-use disclosure section).
