@@ -91,6 +91,16 @@ def predict_trip(trip: str | Path, model=None, config: dict | None = None,
     seg_full = np.full(n, -1, dtype=np.int64)
     seg_full[lat.point_idx] = seg_id
 
+    # snapped position of each fix on its HMM arc (projection), as [lat, lon]; None if skipped
+    a_xy, b_xy = tr.arc_xy
+    tpos = np.array([lat.pos[k][s] for k, s in enumerate(hmm_states)]) if len(hmm_states) else np.empty(0)
+    snap = a_xy[hmm_arcs] + tpos[:, None] * (b_xy[hmm_arcs] - a_xy[hmm_arcs]) if len(hmm_arcs) else np.empty((0, 2))
+    inv = Transformer.from_crs(f"EPSG:{tr.epsg}", "EPSG:4326", always_xy=True)
+    slon, slat = inv.transform(snap[:, 0], snap[:, 1]) if len(snap) else ([], [])
+    matched = [None] * n
+    for k, i in enumerate(lat.point_idx):
+        matched[int(i)] = [round(float(slat[k]), 7), round(float(slon[k]), 7)]
+
     out = {
         "trip_id": tr.trip_id,
         "partition": tr.partition,
@@ -101,6 +111,7 @@ def predict_trip(trip: str | Path, model=None, config: dict | None = None,
         "n_candidate_rows": int(len(feats)),
         "pred_arc_hmm": pred_hmm.tolist(),
         "pred_arc_classifier": pred_clf.tolist(),
+        "matched_latlon": matched,
         "segment_id": seg_full.tolist(),
         "route_arcs": route,
         "route_arcs_classifier": clf_route,
