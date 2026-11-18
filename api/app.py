@@ -4,12 +4,24 @@ Hosts the trained candidate scoring classifier, HMM/Viterbi route decoder,
 and serves route reconstruction endpoints for the evaluation UI.
 """
 
-from fastapi import FastAPI, HTTPException
+import os
+import sys
+import time
+from pathlib import Path
+from typing import List, Optional, Dict, Any
+
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
 import uvicorn
-import time
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+# Ensure PATHSNAP_DATA fallback
+DEFAULT_DATA = ROOT.parent / "pathsnap" / "data"
+if DEFAULT_DATA.exists() and "PATHSNAP_DATA" not in os.environ:
+    os.environ["PATHSNAP_DATA"] = str(DEFAULT_DATA)
 
 app = FastAPI(
     title="PathSnap Map-Matching & Route Reconstruction API",
@@ -26,23 +38,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Student testing trips
+EVAL_TRIPS = [
+    "00000000", "00000007", "00000009", "00000040", "00000052", 
+    "00000056", "00000065", "00000076", "00000077", "00000091"
+]
+
 class PredictRequest(BaseModel):
     trip_id: str
     use_viterbi: bool = True
-
-class PredictResponse(BaseModel):
-    trip_id: str
-    predicted_arcs: List[int]
-    total_points: int
-    matched_points: int
-    inference_time_ms: float
-    decoder_used: str
 
 @app.get("/")
 def root():
     return {
         "service": "PathSnap Map-Matching API",
         "status": "online",
+        "version": "1.0.0",
         "endpoints": ["/health", "/trips", "/predict"]
     }
 
@@ -57,33 +68,33 @@ def health_check():
 @app.get("/trips")
 def list_student_test_trips():
     """List available test trips for Laptop 2 evaluation UI."""
-    test_trips = ["00000000", "00000007", "00000009", "00000040", "00000052", 
-                  "00000056", "00000065", "00000076", "00000077", "00000091"]
     return {
-        "count": len(test_trips),
-        "trips": test_trips
+        "count": len(EVAL_TRIPS),
+        "trips": EVAL_TRIPS
     }
 
-@app.post("/predict", response_model=PredictResponse)
-def predict_trip(req: PredictRequest):
+@app.post("/predict")
+def predict_trip_endpoint(req: PredictRequest):
     """
     Given a trip_id, score candidate road segments and reconstruct
     the most probable path using the Viterbi algorithm.
     """
-    t0 = time.time()
-    
-    # Placeholder response to be connected with trained model artifact & decoder
-    predicted_arcs = []
-    
-    inference_time = (time.time() - t0) * 1000.0
-    return PredictResponse(
-        trip_id=req.trip_id,
-        predicted_arcs=predicted_arcs,
-        total_points=0,
-        matched_points=0,
-        inference_time_ms=inference_time,
-        decoder_used="HMM/Viterbi" if req.use_viterbi else "Greedy Top-1 Classifier"
-    )
+    return run_prediction(req.trip_id, req.use_viterbi)
+
+@app.get("/predict/{trip_id}")
+def predict_trip_get(trip_id: str, use_viterbi: bool = Query(True)):
+    """Convenience GET endpoint for easy browser/curl testing."""
+    return run_prediction(trip_id, use_viterbi)
+
+def run_prediction(trip_id: str, use_viterbi: bool = True):
+    try:
+        from inference.predict import predict_trip
+        res = predict_trip(trip_id, include_points=True)
+        return res
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        raise HTTPException(status_code=500, detail=f"Prediction failed for trip {trip_id}: {str(e)}\n{tb}")
 
 if __name__ == "__main__":
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("api.app:app", host="0.0.0.0", port=8000, reload=True)

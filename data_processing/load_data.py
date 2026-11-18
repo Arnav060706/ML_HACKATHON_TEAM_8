@@ -34,7 +34,16 @@ from pyproj import Transformer
 
 # Default location of the raw data (can be overridden with env var PATHSNAP_DATA).
 DEFAULT_DATA_DIR = Path(__file__).resolve().parents[2] / "Student folder" / "Student folder"
-DATA_DIR = Path(os.environ.get("PATHSNAP_DATA", DEFAULT_DATA_DIR))
+ALT_DATA_DIR = Path(__file__).resolve().parents[2] / "pathsnap" / "data"
+_env_data = os.environ.get("PATHSNAP_DATA")
+if _env_data and Path(_env_data).exists():
+    DATA_DIR = Path(_env_data)
+elif (DEFAULT_DATA_DIR / "train").exists():
+    DATA_DIR = DEFAULT_DATA_DIR
+elif (ALT_DATA_DIR / "train").exists():
+    DATA_DIR = ALT_DATA_DIR
+else:
+    DATA_DIR = DEFAULT_DATA_DIR
 PARTITIONS = ("train", "student_test")
 
 

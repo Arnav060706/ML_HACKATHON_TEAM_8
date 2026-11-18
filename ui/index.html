@@ -4,167 +4,559 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PathSnap — Distributed Map-Matching & Route Reconstruction</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <style>
         :root {
             --primary: #1e40af;
+            --primary-hover: #1d4ed8;
             --success: #16a34a;
+            --warning: #f59e0b;
+            --danger: #dc2626;
             --bg: #f8fafc;
-            --card: #ffffff;
-            --text: #0f172a;
+            --card-bg: #ffffff;
+            --border: #e2e8f0;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
         }
+        * { box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg);
-            color: var(--text);
+            color: var(--text-main);
             margin: 0;
-            padding: 24px;
-        }
-        .container {
-            max-width: 1100px;
-            margin: 0 auto;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
         }
         header {
-            margin-bottom: 24px;
-            border-bottom: 2px solid #e2e8f0;
-            padding-bottom: 16px;
+            background: #ffffff;
+            border-bottom: 1px solid var(--border);
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            z-index: 1000;
         }
-        h1 { margin: 0 0 8px 0; color: var(--primary); }
-        .grid {
-            display: grid;
-            grid-template-columns: 320px 1fr;
-            gap: 24px;
+        .header-title h1 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary);
         }
-        .card {
-            background: var(--card);
-            border-radius: 8px;
+        .header-title span {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            background: #ecfdf5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+        .status-badge.offline {
+            background: #fef2f2;
+            color: #991b1b;
+            border-color: #fecaca;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+        }
+        .status-badge.offline .status-dot {
+            background: var(--danger);
+        }
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        .sidebar {
+            width: 360px;
+            background: var(--card-bg);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
             padding: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            border: 1px solid #e2e8f0;
+            gap: 20px;
+            box-shadow: 2px 0 6px rgba(0,0,0,0.03);
+            z-index: 500;
         }
-        label { font-weight: 600; display: block; margin-bottom: 8px; }
-        select, input, button {
-            width: 100%;
-            padding: 10px;
-            border-radius: 6px;
-            border: 1px solid #cbd5e1;
-            box-sizing: border-box;
+        .section-box {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .section-box h3 {
+            margin: 0 0 12px 0;
             font-size: 14px;
-            margin-bottom: 16px;
+            font-weight: 700;
+            color: #1e293b;
+            border-bottom: 1px solid #f1f5f9;
+            padding-bottom: 6px;
+        }
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+        input, select {
+            width: 100%;
+            padding: 9px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-bottom: 12px;
+            background-color: #fff;
+            color: var(--text-main);
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.15);
         }
         button {
+            width: 100%;
+            padding: 11px 16px;
             background-color: var(--primary);
             color: white;
             font-weight: 600;
-            cursor: pointer;
+            font-size: 14px;
             border: none;
-            transition: background 0.2s;
-        }
-        button:hover { background-color: #1d4ed8; }
-        .stats-badge {
-            display: inline-block;
-            background: #e0f2fe;
-            color: #0369a1;
-            padding: 4px 10px;
-            border-radius: 9999px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-right: 8px;
-        }
-        pre {
-            background: #1e293b;
-            color: #f8fafc;
-            padding: 16px;
             border-radius: 6px;
-            overflow-x: auto;
-            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+        button:hover { background-color: var(--primary-hover); }
+        button:disabled {
+            background-color: #94a3b8;
+            cursor: not-allowed;
+        }
+        .btn-secondary {
+            background-color: #f1f5f9;
+            color: #334155;
+            margin-top: 8px;
+            padding: 8px 12px;
+            font-size: 12px;
+        }
+        .btn-secondary:hover { background-color: #e2e8f0; }
+        .metric-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .metric-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 10px;
+        }
+        .metric-card .title {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        .metric-card .val {
+            font-size: 16px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        #map {
+            flex: 1;
+            height: 100%;
+            background: #e2e8f0;
+        }
+        /* Custom Leaflet Legend */
+        .leaflet-legend {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 12px 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            font-size: 12px;
+            line-height: 20px;
+            border: 1px solid #cbd5e1;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 4px;
+        }
+        .legend-color {
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+        .legend-circle {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            border: 1px solid #000;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
+
+    <header>
+        <div class="header-title">
             <h1>PathSnap: Evaluator UI (Laptop 2)</h1>
-            <p>Distributed Map-Matching and Trajectory Reconstruction System</p>
-        </header>
+            <span>Distributed Real-Time Map-Matching & Trajectory Reconstruction</span>
+        </div>
+        <div id="statusBadge" class="status-badge">
+            <span class="status-dot"></span>
+            <span id="statusText">Ready</span>
+        </div>
+    </header>
 
-        <div class="grid">
-            <div class="card">
-                <h3>Evaluation Controls</h3>
-                <label for="apiUrl">Laptop 1 API Host</label>
-                <input type="text" id="apiUrl" value="http://localhost:8000">
+    <div class="main-container">
+        <!-- Controls & Metrics Sidebar -->
+        <div class="sidebar">
+            <div class="section-box">
+                <h3>Backend API Connection</h3>
+                <label for="apiHost">Laptop 1 Host Address</label>
+                <input type="text" id="apiHost" value="http://localhost:8000" placeholder="http://192.168.x.x:8000">
 
-                <label for="tripSelect">Select Test Trip</label>
-                <select id="tripSelect">
-                    <option value="00000000">Trip 00000000</option>
-                    <option value="00000007">Trip 00000007</option>
-                    <option value="00000009">Trip 00000009</option>
-                    <option value="00000040">Trip 00000040</option>
-                    <option value="00000052">Trip 00000052</option>
-                    <option value="00000056">Trip 00000056</option>
-                    <option value="00000065">Trip 00000065</option>
-                    <option value="00000076">Trip 00000076</option>
-                    <option value="00000077">Trip 00000077</option>
-                    <option value="00000091">Trip 00000091</option>
-                </select>
-
-                <label>
-                    <input type="checkbox" id="useViterbi" checked style="width:auto; margin-right:8px;">
-                    Enable HMM / Viterbi Decoder
-                </label>
-
-                <button id="runBtn" onclick="runMatching()">Reconstruct Route</button>
-
-                <div id="statusBox" style="font-size:13px; color:#64748b; margin-top:8px;">Ready.</div>
+                <button type="button" class="btn-secondary" onclick="fetchTrips()">
+                    🔄 Connect & Refresh Trips
+                </button>
             </div>
 
-            <div class="card">
-                <h3>Reconstruction Results & Telemetry</h3>
-                <div id="metricsRow" style="margin-bottom:16px;">
-                    <span class="stats-badge" id="badgeLatency">Latency: -- ms</span>
-                    <span class="stats-badge" id="badgeArcs">Predicted Arcs: --</span>
-                    <span class="stats-badge" id="badgeMethod">Method: --</span>
+            <div class="section-box">
+                <h3>Evaluation Selection</h3>
+                <label for="tripSelect">Select Evaluator Trip</label>
+                <select id="tripSelect">
+                    <option value="00000000">Trip 00000000 (2503 pts)</option>
+                    <option value="00000007">Trip 00000007 (1354 pts)</option>
+                    <option value="00000009">Trip 00000009 (1049 pts)</option>
+                    <option value="00000040">Trip 00000040 (2995 pts)</option>
+                    <option value="00000052">Trip 00000052 (262 pts)</option>
+                    <option value="00000056">Trip 00000056 (3958 pts)</option>
+                    <option value="00000065">Trip 00000065 (768 pts)</option>
+                    <option value="00000076">Trip 00000076 (1486 pts)</option>
+                    <option value="00000077">Trip 00000077 (3911 pts)</option>
+                    <option value="00000091">Trip 00000091 (874 pts)</option>
+                </select>
+
+                <div style="margin-bottom: 12px;">
+                    <label style="display:inline-flex; align-items:center; cursor:pointer;">
+                        <input type="checkbox" id="useViterbi" checked style="width:auto; margin:0 8px 0 0;">
+                        Enable HMM / Viterbi Sequence Decoder
+                    </label>
                 </div>
 
-                <div id="outputContainer">
-                    <pre id="jsonOutput">// API response will appear here upon evaluation...</pre>
+                <button id="predictBtn" onclick="runPrediction()">
+                    🚀 Reconstruct Route
+                </button>
+
+                <button type="button" class="btn-secondary" onclick="loadMockData()">
+                    🧪 Test with Mock Data (Offline Mode)
+                </button>
+            </div>
+
+            <div class="section-box">
+                <h3>Reconstruction Telemetry</h3>
+                <div class="metric-grid">
+                    <div class="metric-card">
+                        <div class="title">GPS Points</div>
+                        <div class="val" id="metricPoints">--</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="title">Route Arcs</div>
+                        <div class="val" id="metricArcs">--</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="title">Total Latency</div>
+                        <div class="val" id="metricLatency">-- ms</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="title">HMM Decoder</div>
+                        <div class="val" id="metricDecoder">--</div>
+                    </div>
+                </div>
+
+                <div style="margin-top:12px; font-size:12px; color:var(--text-muted); line-height: 1.6;">
+                    <div><b>Timing Breakdown:</b></div>
+                    <div id="timingDetails">Features: -- ms | Model: -- ms | HMM: -- ms</div>
                 </div>
             </div>
         </div>
+
+        <!-- Interactive Map Container -->
+        <div id="map"></div>
     </div>
 
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
     <script>
-        async function runMatching() {
-            const apiHost = document.getElementById("apiUrl").value.trim();
-            const tripId = document.getElementById("tripSelect").value;
-            const useViterbi = document.getElementById("useViterbi").checked;
-            const statusBox = document.getElementById("statusBox");
-            const btn = document.getElementById("runBtn");
+        // Initialize Map
+        const map = L.map('map', {
+            zoomControl: true
+        }).setView([56.25, 54.96], 13);
+
+        // Add Base Tile Layers
+        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+
+        const cartoLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            maxZoom: 19,
+            attribution: '&copy; CartoDB Positron'
+        });
+
+        // Layer Groups
+        const gpsLayer = L.layerGroup().addTo(map);
+        const routeLayer = L.layerGroup().addTo(map);
+        const matchedLayer = L.layerGroup();
+        const markersLayer = L.layerGroup().addTo(map);
+
+        // Add Layer Controls
+        L.control.layers({
+            "OpenStreetMap": osmLayer,
+            "CartoDB Positron": cartoLight
+        }, {
+            "Reconstructed Route (Green)": routeLayer,
+            "Raw GPS Points (Blue)": gpsLayer,
+            "Snapped Road Points (Orange)": matchedLayer,
+            "Start / End Markers": markersLayer
+        }, { position: 'topright' }).addTo(map);
+
+        // Add Map Legend
+        const legend = L.control({ position: 'bottomleft' });
+        legend.onAdd = function() {
+            const div = L.DomUtil.create('div', 'leaflet-legend');
+            div.innerHTML = `
+                <div style="font-weight:700; margin-bottom:6px; border-bottom:1px solid #cbd5e1; padding-bottom:3px;">PathSnap Map Legend</div>
+                <div class="legend-item"><span class="legend-color" style="background:#16a34a; height:4px;"></span> <b>Predicted Route (HMM)</b></div>
+                <div class="legend-item"><span class="legend-circle" style="background:#3b82f6;"></span> Raw GPS Fix (1 Hz)</div>
+                <div class="legend-item"><span class="legend-circle" style="background:#f97316;"></span> Snapped Map Location</div>
+                <div class="legend-item"><span style="color:#16a34a; font-size:14px;">▶</span> Start Point | <span style="color:#dc2626; font-size:14px;">■</span> End Point</div>
+            `;
+            return div;
+        };
+        legend.addTo(map);
+
+        // Fetch Trips from API
+        async function fetchTrips() {
+            const host = document.getElementById('apiHost').value.trim();
+            setStatus("Connecting...", "warn");
+            try {
+                const res = await fetch(`${host}/trips`, { method: "GET" });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                
+                const select = document.getElementById('tripSelect');
+                select.innerHTML = '';
+                data.trips.forEach(t => {
+                    const opt = document.createElement('option');
+                    opt.value = t;
+                    opt.innerText = `Trip ${t}`;
+                    select.appendChild(opt);
+                });
+                setStatus("Connected to Laptop 1", "online");
+            } catch (err) {
+                console.warn("Could not reach API:", err);
+                setStatus("Offline / Unreachable", "offline");
+            }
+        }
+
+        // Run Route Prediction
+        async function runPrediction() {
+            const host = document.getElementById('apiHost').value.trim();
+            const tripId = document.getElementById('tripSelect').value;
+            const useViterbi = document.getElementById('useViterbi').checked;
+            const btn = document.getElementById('predictBtn');
 
             btn.disabled = true;
-            statusBox.innerText = `Calling API on ${apiHost}...`;
+            btn.innerText = "⏳ Reconstructing...";
+            setStatus(`Running inference on ${tripId}...`, "warn");
 
+            const t0 = performance.now();
             try {
-                const res = await fetch(`${apiHost}/predict`, {
+                const res = await fetch(`${host}/predict`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ trip_id: tripId, use_viterbi: useViterbi })
                 });
 
-                if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+                if (!res.ok) throw new Error(`Server returned HTTP ${res.status}`);
                 const data = await res.json();
+                const totalLatency = Math.round(performance.now() - t0);
 
-                document.getElementById("badgeLatency").innerText = `Latency: ${data.inference_time_ms.toFixed(1)} ms`;
-                document.getElementById("badgeArcs").innerText = `Arcs: ${data.predicted_arcs.length}`;
-                document.getElementById("badgeMethod").innerText = `Decoder: ${data.decoder_used}`;
-                document.getElementById("jsonOutput").innerText = JSON.stringify(data, null, 2);
-                statusBox.innerText = "Reconstruction successful!";
+                renderPrediction(data, totalLatency);
+                setStatus("Reconstruction Complete", "online");
             } catch (err) {
-                statusBox.innerText = `Error: ${err.message}`;
-                document.getElementById("jsonOutput").innerText = `Failed to connect to API on ${apiHost}.\nEnsure Laptop 1 is running 'uvicorn api.app:app --host 0.0.0.0 --port 8000' and firewall permits inbound port 8000.`;
+                console.error(err);
+                setStatus(`API Error: ${err.message}`, "offline");
+                alert(`Failed to connect to Laptop 1 at ${host}.\nEnsure API is running on Laptop 1 and port 8000 is open.\n\nTip: Click 'Test with Mock Data' below to demonstrate the UI!`);
             } finally {
                 btn.disabled = false;
+                btn.innerText = "🚀 Reconstruct Route";
             }
         }
+
+        // Render GeoJSON / Polyline on Map
+        function renderPrediction(data, networkLatency) {
+            // Clear existing layers
+            gpsLayer.clearLayers();
+            routeLayer.clearLayers();
+            matchedLayer.clearLayers();
+            markersLayer.clearLayers();
+
+            const allLatLngs = [];
+
+            // 1. Render Predicted Route (Polylines)
+            if (data.route_latlon && data.route_latlon.length > 0) {
+                data.route_latlon.forEach(segment => {
+                    const poly = L.polyline(segment, {
+                        color: "#16a34a",
+                        weight: 5,
+                        opacity: 0.9,
+                        lineCap: 'round',
+                        lineJoin: 'round'
+                    });
+                    routeLayer.addLayer(poly);
+                    segment.forEach(pt => allLatLngs.push(pt));
+                });
+            }
+
+            // 2. Render Raw GPS Points
+            if (data.gps_latlon && data.gps_latlon.length > 0) {
+                // Dashed GPS path
+                const gpsPoly = L.polyline(data.gps_latlon, {
+                    color: "#3b82f6",
+                    weight: 2,
+                    dashArray: "4, 6",
+                    opacity: 0.6
+                });
+                gpsLayer.addLayer(gpsPoly);
+
+                // Circle markers
+                data.gps_latlon.forEach((pt, i) => {
+                    const circle = L.circleMarker(pt, {
+                        radius: 3,
+                        color: "#1d4ed8",
+                        fillColor: "#3b82f6",
+                        fillOpacity: 0.8,
+                        weight: 1
+                    }).bindPopup(`<b>GPS Point #${i}</b><br>Lat: ${pt[0]}<br>Lon: ${pt[1]}`);
+                    gpsLayer.addLayer(circle);
+                    allLatLngs.push(pt);
+                });
+
+                // Start / End Markers
+                const startPt = data.gps_latlon[0];
+                const endPt = data.gps_latlon[data.gps_latlon.length - 1];
+                
+                markersLayer.addLayer(L.marker(startPt).bindPopup(`<b>Start Fix: ${data.trip_id}</b>`));
+                markersLayer.addLayer(L.marker(endPt).bindPopup(`<b>End Fix: ${data.trip_id}</b>`));
+            }
+
+            // 3. Render Snapped Points
+            if (data.matched_latlon && data.matched_latlon.length > 0) {
+                data.matched_latlon.forEach((pt, i) => {
+                    if (pt) {
+                        const mCircle = L.circleMarker(pt, {
+                            radius: 2.5,
+                            color: "#c2410c",
+                            fillColor: "#f97316",
+                            fillOpacity: 0.8,
+                            weight: 1
+                        }).bindPopup(`<b>Snapped Arc Fix #${i}</b><br>Lat: ${pt[0]}<br>Lon: ${pt[1]}`);
+                        matchedLayer.addLayer(mCircle);
+                    }
+                });
+            }
+
+            // Zoom map to fit trajectory bounds
+            if (allLatLngs.length > 0) {
+                map.fitBounds(allLatLngs, { padding: [40, 40] });
+            }
+
+            // Update Metrics Panel
+            document.getElementById('metricPoints').innerText = data.n_points || data.gps_latlon?.length || 0;
+            document.getElementById('metricArcs').innerText = data.route_arcs?.length || 0;
+            
+            const totalMs = data.timings_s ? Math.round(data.timings_s.total * 1000) : networkLatency;
+            document.getElementById('metricLatency').innerText = `${totalMs} ms`;
+            document.getElementById('metricDecoder').innerText = data.decoder ? `HMM (β=${data.decoder.beta})` : "Classifier";
+
+            if (data.timings_s) {
+                const t = data.timings_s;
+                document.getElementById('timingDetails').innerText = 
+                    `Features: ${Math.round(t.features*1000)}ms | Model: ${Math.round(t.model*1000)}ms | HMM: ${Math.round(t.hmm*1000)}ms`;
+            } else {
+                document.getElementById('timingDetails').innerText = `Round-trip network latency: ${networkLatency}ms`;
+            }
+        }
+
+        function setStatus(text, type) {
+            const badge = document.getElementById('statusBadge');
+            const statusText = document.getElementById('statusText');
+            statusText.innerText = text;
+            badge.className = `status-badge ${type}`;
+        }
+
+        // Mock Data for Offline Demonstrations
+        function loadMockData() {
+            setStatus("Rendering Mock Data...", "warn");
+            // Realistic trajectory in Darmstadt (Trip 00000001 coordinates)
+            const baseLat = 49.855;
+            const baseLon = 8.582;
+            const ptsCount = 60;
+            const gpsPts = [];
+            const routePts = [];
+
+            for (let i = 0; i < ptsCount; i++) {
+                const lat = baseLat + (i * 0.0004) + (Math.sin(i / 3) * 0.0001);
+                const lon = baseLon + (i * 0.0003) + (Math.cos(i / 3) * 0.00008);
+                // add slight GPS noise to raw points
+                const noiseLat = lat + ((Math.random() - 0.5) * 0.00018);
+                const noiseLon = lon + ((Math.random() - 0.5) * 0.00018);
+                gpsPts.push([parseFloat(noiseLat.toFixed(6)), parseFloat(noiseLon.toFixed(6))]);
+                routePts.push([parseFloat(lat.toFixed(6)), parseFloat(lon.toFixed(6))]);
+            }
+
+            const mockPayload = {
+                trip_id: "00000052 (Mock)",
+                n_points: ptsCount,
+                gps_latlon: gpsPts,
+                route_latlon: [routePts],
+                matched_latlon: routePts,
+                route_arcs: Array.from({length: 42}, (_, i) => i + 100),
+                decoder: { beta: 5.0, gap_s: 60.0 },
+                timings_s: { features: 0.045, model: 0.082, hmm: 0.065, total: 0.192 }
+            };
+
+            renderPrediction(mockPayload, 192);
+            setStatus("Mock Mode (Offline Display)", "online");
+        }
+
+        // Run auto-fetch on initial page load
+        window.addEventListener('DOMContentLoaded', () => {
+            fetchTrips();
+        });
     </script>
 </body>
 </html>
