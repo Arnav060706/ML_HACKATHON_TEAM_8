@@ -1,0 +1,40 @@
+train 80 trips 1,396,401 rows | test 10 trips
+Search: TPE seed 42, 3-fold, fit on 30% of reliable rows, timeout 1800s
+[trial 0] f1=0.9073 ll=0.1112 top1=0.7572 fit=10.3s ~23MB {'n_estimators': 87, 'max_depth': 29, 'min_samples_leaf': 22, 'max_features': 'sqrt', 'class_weight': None}
+[trial 1] f1=0.9082 ll=0.1129 top1=0.7573 fit=12.0s ~12MB {'n_estimators': 52, 'max_depth': 30, 'min_samples_leaf': 25, 'max_features': 0.5, 'class_weight': None}
+[trial 2] f1=0.8879 ll=0.1508 top1=0.7582 fit=14.2s ~13MB {'n_estimators': 111, 'max_depth': 11, 'min_samples_leaf': 9, 'max_features': 0.3, 'class_weight': 'balanced'}
+[trial 3] f1=0.8877 ll=0.1528 top1=0.7566 fit=12.2s ~15MB {'n_estimators': 111, 'max_depth': 11, 'min_samples_leaf': 2, 'max_features': 'log2', 'class_weight': 'balanced'}
+[trial 4] f1=0.9047 ll=0.1283 top1=0.7586 fit=8.4s ~43MB {'n_estimators': 62, 'max_depth': 19, 'min_samples_leaf': 2, 'max_features': 'sqrt', 'class_weight': 'balanced'}
+[trial 9] f1=0.9072 ll=0.1124 top1=0.7583 fit=7.8s ~16MB {'n_estimators': 62, 'max_depth': 24, 'min_samples_leaf': 23, 'max_features': 'log2', 'class_weight': None}
+[trial 10] f1=0.9068 ll=0.1099 top1=0.7567 fit=20.4s ~4MB {'n_estimators': 126, 'max_depth': 8, 'min_samples_leaf': 18, 'max_features': 0.5, 'class_weight': None}
+[trial 11] f1=0.9081 ll=0.1169 top1=0.7571 fit=13.5s ~18MB {'n_estimators': 54, 'max_depth': 28, 'min_samples_leaf': 14, 'max_features': 0.5, 'class_weight': None}
+[trial 12] f1=0.9082 ll=0.1180 top1=0.7579 fit=14.1s ~20MB {'n_estimators': 55, 'max_depth': 27, 'min_samples_leaf': 12, 'max_features': 0.5, 'class_weight': None}
+[trial 13] f1=0.9084 ll=0.1120 top1=0.7577 fit=15.1s ~11MB {'n_estimators': 54, 'max_depth': 30, 'min_samples_leaf': 30, 'max_features': 0.5, 'class_weight': None}
+[trial 14] f1=0.9081 ll=0.1112 top1=0.7572 fit=17.2s ~12MB {'n_estimators': 62, 'max_depth': 26, 'min_samples_leaf': 30, 'max_features': 0.5, 'class_weight': None}
+[trial 16] f1=0.9079 ll=0.1092 top1=0.7573 fit=19.0s ~15MB {'n_estimators': 75, 'max_depth': 19, 'min_samples_leaf': 27, 'max_features': 0.5, 'class_weight': None}
+[trial 17] f1=0.9084 ll=0.1100 top1=0.7578 fit=27.8s ~26MB {'n_estimators': 118, 'max_depth': 22, 'min_samples_leaf': 25, 'max_features': 0.5, 'class_weight': None}
+[trial 22] f1=0.9086 ll=0.1098 top1=0.7575 fit=25.5s ~23MB {'n_estimators': 110, 'max_depth': 29, 'min_samples_leaf': 28, 'max_features': 0.5, 'class_weight': None}
+[trial 24] f1=0.9085 ll=0.1113 top1=0.7578 fit=17.5s ~16MB {'n_estimators': 74, 'max_depth': 30, 'min_samples_leaf': 27, 'max_features': 0.5, 'class_weight': None}
+[trial 25] f1=0.9083 ll=0.1094 top1=0.7576 fit=31.0s ~28MB {'n_estimators': 138, 'max_depth': 22, 'min_samples_leaf': 29, 'max_features': 0.5, 'class_weight': None}
+[trial 26] f1=0.9084 ll=0.1108 top1=0.7580 fit=35.2s ~39MB {'n_estimators': 139, 'max_depth': 28, 'min_samples_leaf': 18, 'max_features': 0.5, 'class_weight': None}
+[trial 29] f1=0.9084 ll=0.1112 top1=0.7575 fit=28.2s ~39MB {'n_estimators': 123, 'max_depth': 26, 'min_samples_leaf': 15, 'max_features': 0.5, 'class_weight': None}
+[trial 30] f1=0.9087 ll=0.1104 top1=0.7580 fit=33.7s ~39MB {'n_estimators': 138, 'max_depth': 30, 'min_samples_leaf': 18, 'max_features': 0.5, 'class_weight': None}
+Search finished in 1857s: 19 completed, 12 pruned trials
+Saved D:\MyDocuments\sem5\ML\ML_hack_B\models\saved\rf_tuned.joblib (54.1 MB on disk, compress=3)
+[compare cv] untuned_rf fold 0: f1=0.8944 ll=0.1234
+[compare cv] untuned_rf fold 1: f1=0.9267 ll=0.0929
+[compare cv] untuned_rf fold 2: f1=0.9226 ll=0.1022
+[compare cv] untuned_rf fold 3: f1=0.8880 ll=0.1200
+[compare cv] untuned_rf fold 4: f1=0.9047 ll=0.1018
+[compare cv] tuned_rf fold 0: f1=0.8929 ll=0.1273
+[compare cv] tuned_rf fold 1: f1=0.9266 ll=0.0952
+[compare cv] tuned_rf fold 2: f1=0.9221 ll=0.1023
+[compare cv] tuned_rf fold 3: f1=0.8885 ll=0.1275
+[compare cv] tuned_rf fold 4: f1=0.9050 ll=0.1057
+        model  cv_macro_f1  cv_log_loss  cv_top1_all_points  student_test_top1_all_points  student_test_macro_f1  student_test_log_loss  student_test_predict_time_s
+0  untuned_rf     0.907296     0.108070            0.759878                      0.863570               0.918004               0.096569                     0.437835
+1    tuned_rf     0.907018     0.111622            0.759277                      0.864405               0.919342               0.099490                     0.596814
+Best trial 3-fold/30% CV log loss: 0.1104
+5-fold CV log loss: untuned 0.1081, tuned 0.1116
+WARNING: tuned CV log loss is worse than the untuned RF (best trial 0.1104, tuned 5-fold 0.1116, untuned 0.1081 / 0.1081)
+rf_tuned.joblib size: 54.1 MB
