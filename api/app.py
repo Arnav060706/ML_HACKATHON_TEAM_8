@@ -50,6 +50,10 @@ from inference.predict import load_config, load_model, predict_trip  # noqa: E40
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
                     datefmt="%H:%M:%S")
 log = logging.getLogger("pathsnap.api")
+if os.environ.get("PATHSNAP_LOG_FILE"):  # optional copy of the API log (demo evidence)
+    _fh = logging.FileHandler(os.environ["PATHSNAP_LOG_FILE"], encoding="utf-8")
+    _fh.setFormatter(logging.Formatter("%(asctime)s | %(levelname)s | %(name)s | %(message)s", "%H:%M:%S"))
+    logging.getLogger("pathsnap").addHandler(_fh)
 
 PARTITION = os.environ.get("PATHSNAP_TRIPS_PARTITION", "student_test")
 STATE: dict = {"model": None, "config": None, "warmup": None}

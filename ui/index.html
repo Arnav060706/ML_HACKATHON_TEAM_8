@@ -320,6 +320,8 @@
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- optional: written by LAPTOP2_START_DEMO.bat; sets window.PATHSNAP_API to Laptop 1's address -->
+    <script src="config.js"></script>
 
     <script>
         // Initialize Map
@@ -551,6 +553,10 @@
 
         // Run auto-fetch on initial page load
         window.addEventListener('DOMContentLoaded', () => {
+            // Laptop 1's address: ?api=... in the URL, else ui/config.js (written by the Laptop 2 launcher)
+            const fromUrl = new URLSearchParams(window.location.search).get('api');
+            const preset = fromUrl || window.PATHSNAP_API;
+            if (preset) document.getElementById('apiHost').value = preset;
             fetchTrips();
         });
     </script>

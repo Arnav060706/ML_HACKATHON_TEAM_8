@@ -6,3 +6,7 @@ venv/
 # raw data is kept outside the repo (see README)
 data/raw/
 Student folder/
+
+# machine-specific demo files
+ui/config.js
+results/demo_logs/
