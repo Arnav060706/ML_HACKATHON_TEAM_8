@@ -11,6 +11,29 @@ Everything here was tested end to end on the 10 evaluator trips (all 10 OK, 0.3�
 
 ---
 
+## Quick start: two double-clicks (recommended)
+
+| Laptop | Double-click (in the repo folder) | What it does automatically |
+| --- | --- | --- |
+| **Laptop 1** | **`LAPTOP1_START_DEMO.bat`** | ① checks Python, installs missing packages ② adds the firewall rule for port 8000 (asks for admin **once**: click *Yes*) ③ finds the `evaluator_test` folder (copies it from `Hackathon\evaluator_test\evaluator_test` if needed) ④ pre-flight check of every trip (`10/10 trips ready`) ⑤ prints this laptop's IP, marking the one to use ⑥ starts the API and saves its log to `results\demo_logs\` |
+| **Laptop 2** | **`LAPTOP2_START_DEMO.bat`** | ① asks for Laptop 1's IP (remembers the last one) ② tests the connection and shows the API status (model loaded, 10 trips) or what to fix ③ opens the UI **already connected**, with the trips in the dropdown |
+
+**Order:**
+
+1. Both laptops join the same hotspot and run `git pull`.
+2. Laptop 1: double-click `LAPTOP1_START_DEMO.bat`, wait for **`API ready`**, and read out the IP
+   marked `<-- USE THIS`.
+3. Laptop 2: double-click `LAPTOP2_START_DEMO.bat`, type that IP, press Enter. The browser opens
+   the connected UI.
+4. Run the demo script (§4).
+
+Rehearse with the student-test trips: `LAPTOP1_START_DEMO.bat student_test`. To skip the
+question on Laptop 2: `LAPTOP2_START_DEMO.bat 192.168.x.x`.
+
+The sections below are the manual equivalent and the background, if the launchers can't be used.
+
+---
+
 ## 0. Before you start (both laptops)
 
 - [ ] Both laptops **plugged in**; sleep disabled (Settings → System → Power → Screen and sleep → *Never*).
@@ -60,7 +83,8 @@ tick **both Private and Public** networks and click Allow. Phone hotspots are of
 
 ## 2. Laptop 1: start the API
 
-Double-click **`repo\run_api.bat`**, or from a Command Prompt in the repo folder:
+Double-click **`repo\LAPTOP1_START_DEMO.bat`** (recommended, see Quick start) or the simpler
+**`repo\run_api.bat`**, or from a Command Prompt in the repo folder:
 
 ```bat
 run_api.bat                    &rem serves the evaluator_test trips (default)

@@ -8,7 +8,7 @@ PathSnap is an end-to-end distributed machine learning system designed to recons
 >
 > **Deployed pipeline:** default RF configuration in memory-safe form (`models/saved/rf_compact.joblib`, `min_samples_leaf` 50; Optuna tuning gave no CV gain, `results/tuning_comparison.csv`) + HMM/Viterbi (β = 5 m, gap 60 s, `inference/config.json`). Student-test results: Top-1 **0.934** (classifier alone 0.860), route continuity **0.982**, route F1 **0.973** (`results/hmm_vs_classifier.csv`).
 >
-> **Run the demo:** see `api/README.md` (Laptop 1) and `ui/README.md` (Laptop 2). Quick start, from the repo root:
+> **Run the demo:** double-click **`LAPTOP1_START_DEMO.bat`** on Laptop 1 (checks, firewall, pre-flight, IP, API) and **`LAPTOP2_START_DEMO.bat`** on Laptop 2 (connects and opens the UI). Full guide: `docs/DEMO_GUIDE.md`; details in `api/README.md` (Laptop 1) and `ui/README.md` (Laptop 2). Quick start, from the repo root:
 > `set PATHSNAP_TRIPS_PARTITION=evaluator_test` then `uvicorn api.app:app --host 0.0.0.0 --port 8000`; open `ui/index.html` on Laptop 2 and enter `http://<laptop-1-ip>:8000`.
 >
 > **Where things are:** HMM and inference in `inference/`; evaluation, β tuning and comparisons in `evaluation/`; tuning in `models/tune_rf.py`; notes in `docs/` (`hmm_note.md`, `hmm_checklist.md`, `partition_usage.md`).
