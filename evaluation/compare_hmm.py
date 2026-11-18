@@ -1,5 +1,7 @@
 """
-Classifier-only vs classifier + HMM on the 10 STUDENT-TEST trips, through the exact
+Classifier-only vs classifier + HMM on the 10 STUDENT-TEST trips (default) or another partition
+given as the first argument (e.g. `python evaluation/compare_hmm.py evaluator_test`, for final
+reporting only -- never used to choose anything), through the exact
 pipeline the API uses: predict_trip() (no .route) followed by evaluate() (.route).
 
 Outputs
@@ -50,6 +52,10 @@ def failure_windows(trip_id, pred, true_arc, min_len=5):
 
 
 def main():
+    global PART
+    if len(sys.argv) > 1:
+        PART = sys.argv[1]          # e.g. "evaluator_test" -- final reporting only, never for tuning
+    sfx = "" if PART == "student_test" else f"_{PART}"
     cfg = load_config()
     model = load_model(cfg)
     rows, fails = [], []
@@ -57,6 +63,9 @@ def main():
         t0 = time.perf_counter()
         pred = predict_trip(tid, model=model, config=cfg)
         res = evaluate(pred, trip_dir=DATA_DIR / PART / tid)
+        if not res.get("reference_available", True):
+            print(tid, "no reference route: skipped in metrics", flush=True)
+            continue
         _, true_arc, _ = reference_labels(DATA_DIR / PART / tid)
         fails += failure_windows(tid, pred, true_arc)
         for dec in ("classifier_only", "hmm"):
@@ -85,8 +94,9 @@ def main():
     out.insert(2, "beta", cfg["beta"])
     out.insert(3, "gap_s", cfg["gap_s"])
     out.insert(4, "model", cfg["model_path"])
-    out.to_csv(ROOT / "results" / "hmm_vs_classifier.csv", index=False)
-    pd.DataFrame(fails).to_csv(ROOT / "results" / "hmm_failure_cases.csv", index=False)
+    out.insert(1, "partition", PART)
+    out.to_csv(ROOT / "results" / f"hmm_vs_classifier{sfx}.csv", index=False)
+    pd.DataFrame(fails).to_csv(ROOT / "results" / f"hmm_failure_cases{sfx}.csv", index=False)
     with pd.option_context("display.width", 200):
         print(out[out.trip_id.str.startswith("ALL")].T)
     print(f"{len(fails)} failure windows written")
