@@ -1,9 +1,9 @@
 {
-  "model_path": "models/saved/rf_compact.joblib",
+  "model_path": "models/saved/rf_tuned.joblib",
   "fallback_model_path": "models/saved/rf_compact.joblib",
   "radius_m": 100.0,
   "top_k": 8,
   "beta": 5.0,
   "gap_s": 60.0,
-  "note": "beta/gap_s chosen by evaluation/tune_hmm.py on train OOF probabilities (rf_compact); max pooled Top-1 on reliable train fixes"
+  "note": "model = B's Optuna-tuned RF (models/rf_tuned_params.json); beta/gap_s = 5 m / 60 s, chosen by evaluation/tune_hmm.py on train OOF probabilities of the compact RF (not re-tuned for the tuned model: time limit)"
 }
