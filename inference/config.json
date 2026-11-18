@@ -1,6 +1,6 @@
 {
-  "model_path": "models/saved/rf.joblib",
-  "fallback_model_path": "models/saved/rf.joblib",
+  "model_path": "models/saved/rf_compact.joblib",
+  "fallback_model_path": "models/saved/rf_compact.joblib",
   "radius_m": 100.0,
   "top_k": 8,
   "beta": 10.0,
