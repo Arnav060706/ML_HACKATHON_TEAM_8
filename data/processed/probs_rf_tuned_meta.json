@@ -1,0 +1,15 @@
+{
+  "model": "rf_tuned",
+  "params": {
+    "n_estimators": 138,
+    "max_depth": 30,
+    "min_samples_leaf": 18,
+    "max_features": 0.5,
+    "class_weight": null
+  },
+  "fit_rows": "label_reliable == 1 (all 80 train trips)",
+  "seed": 42,
+  "fit_seconds": 192.3,
+  "student_test_predict_seconds": 0.59,
+  "note": "final model only; no OOF probabilities (time limit)"
+}
