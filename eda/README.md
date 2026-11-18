@@ -12,12 +12,13 @@ eda/
 │   ├── partition_inventory_summary.csv# Partition-level inventory (80 train, 10 test)
 │   ├── trip_inventory_detailed.csv    # Per-trip metrics across all 90 trips
 │   ├── large_gps_gaps.csv             # Details on all 1,951 GPS intervals > 3s
-│   └── road_network_graph_analysis.csv# NetworkX topology metrics across sample trips
+│   └── road_network_graph_analysis.csv# NetworkX topology metrics for all 90 trip networks
 ├── plots/
 │   ├── gps_sampling_interval_distribution.png  # Histogram & boxplot of sampling rate
 │   ├── trajectory_length_and_points.png        # Points & trajectory distance distributions
 │   ├── gps_speed_distribution.png              # Implied vehicle speed distribution
-│   └── road_network_topology_summary.png       # Graph size and isolated nodes check
+│   ├── road_network_topology_summary.png       # Largest-WCC share and component counts (90 trips)
+│   └── trajectory_and_network_00000001.png     # Static GPS + road network + route plot
 └── maps/
     ├── trip_00000001_map.html         # Interactive Folium map for Trip 00000001
     └── trip_00000002_map.html         # Interactive Folium map for Trip 00000002
@@ -38,10 +39,10 @@ eda/
   * Trip `00000078` contains a 14.7-hour gap ($52,810\text{ s}$).
   * **HMM Strategy:** Long gaps ($\Delta t > 30\text{ s}$) must segment the trajectory to avoid corrupting transition probabilities.
 
-### C. Road Network Topology (NetworkX)
-* **Isolated Vertices:** **0 isolated nodes** ($0.0\%$) across all road networks.
-* **Graph Connectivity:** The giant Weakly Connected Component (WCC) contains **93.4%–98.9%** of all nodes per trip. Smaller disjoint components result from bounding-box spatial cropping and separate pedestrian/service paths.
-* **Self-Loops:** **0 self-loops** ($u \to u$).
+### C. Road Network Topology (NetworkX, all 90 trip networks)
+* **Isolated Vertices:** **0 isolated nodes** ($0.0\%$) across all 90 road networks.
+* **Graph Connectivity:** The giant Weakly Connected Component (WCC) contains a median **98.0%** of nodes per trip (range 69.3% for trip `00000095` to 100%). Smaller disjoint components result from bounding-box spatial cropping and separate pedestrian/service paths.
+* **Self-Loops:** **12 self-loops** ($u \to u$) in total across the 90 networks.
 
 ### D. Reference Route Limitations
 * **Route Discontinuities:** In **12.5%** of training trips (e.g. Trips 2, 19, 33, 41, 42, 69, 75, 80, 86, 89), reference routes contain topological gaps where $\text{arc}_k.\text{to\_node} \neq \text{arc}_{k+1}.\text{from\_node}$.
@@ -52,5 +53,6 @@ eda/
 To regenerate all tables, plots, and Folium maps:
 
 ```bash
+python eda/run_eda.py            # data from ../Student folder/Student folder or $PATHSNAP_DATA
 python eda/run_eda.py --data_dir /path/to/raw_dataset --output_dir eda/
 ```

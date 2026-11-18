@@ -10,12 +10,12 @@
 
 > [!IMPORTANT]
 > **Critical Finding on Coordinate Systems (Crucial for Task A & Task B):**  
-> While initial inspection of Trip `00000001` suggested Germany (UTM Zone 32N / `EPSG:32632`), **our complete 90-trip audit reveals that the PathSnap dataset is globally distributed**. Trajectories span **Longitude -100.42° to +137.24°** and **Latitude -34.64° to +61.70°**, covering **23 distinct UTM zones** across North America, Europe, Asia, and the Southern Hemisphere. A single static UTM 32N projection will severely distort or invalidate non-European trips. **Coordinates must be projected dynamically per trip** using `EPSG:32600 + zone` (Northern hemisphere) or `EPSG:32700 + zone` (Southern hemisphere).
+> While initial inspection of Trip `00000001` suggested Germany (UTM Zone 32N / `EPSG:32632`), **our complete 90-trip audit reveals that the PathSnap dataset is globally distributed**. Trajectories span **Longitude -100.42° to +137.24°** and **Latitude -34.64° to +61.70°**, covering **25 distinct UTM zones** across North America, Europe, Asia, and the Southern Hemisphere. A single static UTM 32N projection will severely distort or invalidate non-European trips. **Coordinates must be projected dynamically per trip** using `EPSG:32600 + zone` (Northern hemisphere) or `EPSG:32700 + zone` (Southern hemisphere).
 
 ### Key Takeaways
 1. **Zero Data Corruption:** Across all 227,577 GPS observations, there are **0 missing values (NaNs)**, **0 timestamp inversions**, and **0 duplicate timestamps**. GPS observations are strictly monotonic.
 2. **Sampling Regularity with Long Pause Outliers:** **94.3%** of GPS observations have $\Delta t = 1.0\text{ s}$ (nominally 1 Hz). However, 1,951 gaps exceed 3 seconds, and extreme tracking pauses occur (e.g., Trip `00000090` has an overnight gap of 42.5 hours; Trip `00000078` has a gap of 14.7 hours).
-3. **Graph Topology (NetworkX):** Road networks are provided as localized subgraphs per trip. There are **0 isolated nodes** (0.0%). The largest Weakly Connected Component (WCC) encompasses **93.4%–98.9%** of all nodes per trip. Smaller disconnected components arise primarily from boundary clipping and footway/service networks.
+3. **Graph Topology (NetworkX, all 90 trip networks):** Road networks are provided as localized subgraphs per trip. There are **0 isolated nodes** and **12 self-loops** in total. The largest Weakly Connected Component (WCC) holds a median **98.0%** of nodes per trip (range 69.3% for trip `00000095` to 100%). Smaller disconnected components arise primarily from boundary clipping and footway/service networks.
 4. **Reference Route Anomalies:** **87.5%** of training trips have continuous topological routes. In **12.5%** of trips, reference routes exhibit discrete jumps where $\text{arc}_k.\text{to\_node} \neq \text{arc}_{k+1}.\text{from\_node}$, confirming the guideline caveat that reference routes contain ground-truth digitization limitations.
 
 ---
@@ -47,16 +47,16 @@ Each trip directory contains four core whitespace-delimited files:
 | **Continuous Ground Truth Routes** | **87.5% (70/80)** | **90.0% (9/10)** | **87.8% (79/90)** |
 | **Total Raw Disk Footprint** | 85.58 MB | 4.17 MB | **89.75 MB** |
 
-*Full per-trip breakdown is saved in [trip_inventory_detailed.csv](file:///C:/Users/Arnav%20Sharma/.gemini/antigravity/scratch/pathsnap/eda/tables/trip_inventory_detailed.csv).*
+*Full per-trip breakdown is saved in [trip_inventory_detailed.csv](../eda/tables/trip_inventory_detailed.csv).*
 
 ---
 
 ## 3. Trajectory Quality & Physical Validity Analysis
 
-![Trajectory Length and Points Distribution](file:///C:/Users/Arnav%20Sharma/.gemini/antigravity/brain/c225b259-93be-4614-be1b-fd79e417093f/plots/trajectory_length_and_points.png)
+![Trajectory Length and Points Distribution](../eda/plots/trajectory_length_and_points.png)
 
 ### 3.1 Sampling Frequency & Time Gaps
-![GPS Sampling Interval Distribution](file:///C:/Users/Arnav%20Sharma/.gemini/antigravity/brain/c225b259-93be-4614-be1b-fd79e417093f/plots/gps_sampling_interval_distribution.png)
+![GPS Sampling Interval Distribution](../eda/plots/gps_sampling_interval_distribution.png)
 
 * **Nominal Rate:** **94.32%** of observations feature an interval of exactly $\Delta t = 1.0\text{ s}$.
 * **Irregular Gaps:** Across the dataset, **1,951 intervals exceed 3 seconds** and **617 intervals exceed 10 seconds**.
@@ -70,7 +70,7 @@ Each trip directory contains four core whitespace-delimited files:
 > **HMM / Viterbi Implication:** When $\Delta t > 30\text{ s}$, the Markovian transition probability $P(s_{t} \mid s_{t-1})$ derived from steady vehicle kinematics degrades. In the HMM decoder, long gaps must either reset the Viterbi chain or cap the transition distance penalty.
 
 ### 3.2 Vehicle Speed Distribution ($v = \Delta d / \Delta t$)
-![GPS Speed Distribution](file:///C:/Users/Arnav%20Sharma/.gemini/antigravity/brain/c225b259-93be-4614-be1b-fd79e417093f/plots/gps_speed_distribution.png)
+![GPS Speed Distribution](../eda/plots/gps_speed_distribution.png)
 
 * Implied instantaneous velocities cluster between **0 and 65 km/h**, typical of urban stop-and-go driving and suburban arterial travel.
 * A secondary peak occurs at **80–110 km/h**, representing motorway segments.
@@ -82,9 +82,16 @@ Each trip directory contains four core whitespace-delimited files:
 
 Each trip's road network was converted to a directed graph $G = (V, E)$ using `networkx.DiGraph`.
 
-![Road Network Topology Summary](file:///C:/Users/Arnav%20Sharma/.gemini/antigravity/brain/c225b259-93be-4614-be1b-fd79e417093f/plots/road_network_topology_summary.png)
+![Road Network Topology Summary](../eda/plots/road_network_topology_summary.png)
 
-### Graph Metrics on Representative Sample Trips
+The analysis covers **all 90 trip networks** (train + student_test). The full per-trip table is
+[road_network_graph_analysis.csv](../eda/tables/road_network_graph_analysis.csv).
+
+**Summary over all 90 networks:** 0 isolated nodes; 12 self-loops; share of nodes in the largest WCC:
+median 98.0%, minimum 69.3% (trip `00000095`), maximum 100%. Larger networks have more small
+components (right panel of the plot), consistent with clipping at the network's bounding box.
+
+### Graph Metrics on Representative Trips (excerpt)
 
 | Trip ID | Partition | Total Nodes $|V|$ | Total Arcs $|E|$ | Isolated Nodes (deg=0) | Weakly Connected Components (WCC) | Largest WCC Coverage (%) | Strongly Connected Components (SCC) | Self Loops |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -97,9 +104,9 @@ Each trip's road network was converted to a directed graph $G = (V, E)$ using `n
 | `00000007` | `student_test` | 2,061 | 4,369 | **0 (0.0%)** | 6 | **96.99%** (1,999 nodes) | 6 | 0 |
 
 ### Topological Findings
-1. **Zero Isolated Nodes:** No unreferenced vertices exist in the provided network slices.
+1. **Zero Isolated Nodes:** No unreferenced vertices exist in any of the 90 network slices. 12 self-loops (u → u) exist across all networks.
 2. **Boundary Truncation:** Sub-networks are spatially cropped around each trajectory. Nodes crossing the bounding box boundary appear as artificial sources ($\text{in-degree} = 0$) or sinks ($\text{out-degree} = 0$).
-3. **Connectivity:** Over **95%** of all network vertices reside within a single giant connected component. Minor components correspond to disjoint suburban enclaves or pedestrian ways not connected to the vehicular roadway.
+3. **Connectivity:** In the median trip, **98%** of network vertices reside within a single giant connected component. Minor components correspond to disjoint suburban enclaves or pedestrian ways not connected to the vehicular roadway.
 
 ---
 
@@ -107,16 +114,20 @@ Each trip's road network was converted to a directed graph $G = (V, E)$ using `n
 
 Interactive multi-layer Folium maps were generated for training trips `00000001` and `00000002`:
 
-1. **Trip 00000001 Interactive Map:** [trip_00000001_map.html](file:///C:/Users/Arnav%20Sharma/.gemini/antigravity/scratch/pathsnap/eda/maps/trip_00000001_map.html) (Local scratch copy) | [Artifact Copy](file:///C:/Users/Arnav%20Sharma/.gemini/antigravity/brain/c225b259-93be-4614-be1b-fd79e417093f/maps/trip_00000001_map.html)
-2. **Trip 00000002 Interactive Map:** [trip_00000002_map.html](file:///C:/Users/Arnav%20Sharma/.gemini/antigravity/scratch/pathsnap/eda/maps/trip_00000002_map.html) (Local scratch copy) | [Artifact Copy](file:///C:/Users/Arnav%20Sharma/.gemini/antigravity/brain/c225b259-93be-4614-be1b-fd79e417093f/maps/trip_00000002_map.html)
+1. **Trip 00000001 Interactive Map:** [trip_00000001_map.html](../eda/maps/trip_00000001_map.html)
+2. **Trip 00000002 Interactive Map:** [trip_00000002_map.html](../eda/maps/trip_00000002_map.html)
 
 ### Map Capabilities & Layer Schema
-* **Base Layers:** OpenStreetMap standard & CartoDB Positron (clean light theme for publication).
+* **Base Layer:** OpenStreetMap standard (CartoDB tiles now require an API key, so they were removed).
 * **Road Network (Arcs) Layer:** Gray vector polylines displaying underlying directed road connectivity.
 * **Reference Route Layer:** Solid emerald green polyline ($w=5$) tracing ground-truth sequence of traversed arcs.
 * **Raw GPS Observations Layer:** Interactive blue circular markers with hover tooltips displaying index, timestamp, and coordinates, connected by a dashed trajectory sequence.
 * **Start & End Pins:** Distinct green play icon (trip start) and red stop icon (trip end).
 * **UI Controls:** Dynamic layer toggling (LayerControl) and a custom fixed-position HTML visual legend.
+
+A static (matplotlib) version for the PDF report, with a whole-trip view and a ~600 m zoom showing the
+GPS noise against the reference route, is in
+[trajectory_and_network_00000001.png](../eda/plots/trajectory_and_network_00000001.png).
 
 ---
 
@@ -130,8 +141,9 @@ Interactive multi-layer Folium maps were generated for training trips `00000001`
 
 ### Core Engineering Assumptions
 1. **Dynamic Per-Trip Projection:** Convert coordinates to meters using local UTM zones:
-   $$\text{Zone} = \left\lfloor \frac{\text{Longitude}_{\text{median}} + 180}{6} \right\rfloor + 1$$
+   $$\text{Zone} = \left\lfloor \frac{\text{Longitude}_{\text{mean}} + 180}{6} \right\rfloor + 1$$
+   (mean of the trip's GPS fixes, as implemented in `data_processing/load_data.py`)
    Assign EPSG code $32600 + \text{Zone}$ for $\text{Lat} \ge 0$, and $32700 + \text{Zone}$ for $\text{Lat} < 0$.
 2. **Non-decreasing Route Alignment:** GPS points must map to candidate arcs along the reference route in a monotonically non-decreasing order to prevent backward transitions.
-3. **Candidate Search Radius ($R$):** Based on observed GPS lateral drift, a spatial index search radius of $R \in [30\text{ m}, 50\text{ m}]$ is optimal to prevent candidate miss while keeping candidate set size tractable.
+3. **Candidate Search Radius ($R$):** The observed GPS lateral drift initially suggested $R \in [30\text{ m}, 50\text{ m}]$. The candidate miss-rate sweep on the 80 training trips (`results/candidate_miss_rate.csv`) showed that a wider radius with a tight top-$k$ is better. **$R = 100\text{ m}, k = 8$** gives a 1.37% miss rate on alignable points with 6.7 candidates per point, versus 2.00% for $R = 50\text{ m}, k = 12$.
 4. **Temporal Gap Segmentation:** Consecutive observations with $\Delta t > 30\text{ s}$ should be treated as trajectory segment boundaries during HMM Viterbi decoding.
