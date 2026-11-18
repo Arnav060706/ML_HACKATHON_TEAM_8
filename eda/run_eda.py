@@ -92,9 +92,14 @@ def run_eda(data_dir, output_dir):
                         large_gaps_records.append({
                             "partition": part,
                             "trip_id": trip_id,
+                            "gap_index": int(g_idx),
                             "gap_seconds": float(dt[g_idx]),
                             "prev_timestamp": float(ts[g_idx]),
-                            "next_timestamp": float(ts[g_idx + 1])
+                            "next_timestamp": float(ts[g_idx + 1]),
+                            "from_lon": float(df_track["lon"].values[g_idx]),
+                            "from_lat": float(df_track["lat"].values[g_idx]),
+                            "to_lon": float(df_track["lon"].values[g_idx + 1]),
+                            "to_lat": float(df_track["lat"].values[g_idx + 1]),
                         })
 
                     dists = haversine_m(df_track["lon"].values[:-1], df_track["lat"].values[:-1],
@@ -114,10 +119,13 @@ def run_eda(data_dir, output_dir):
 
             route_rows = 0
             route_is_continuous = True
+            route_invalid_arcs = 0
             if route_exists:
                 df_route = pd.read_csv(route_fp, sep=r"\s+", header=None, names=["arc_id"])
                 route_rows = len(df_route)
                 r_arcs = df_route["arc_id"].values
+                route_invalid_arcs = int(np.sum((r_arcs < 0) | (r_arcs >= arcs_rows)))
+                r_arcs = r_arcs[(r_arcs >= 0) & (r_arcs < arcs_rows)]
                 if arcs_exists and len(r_arcs) > 1:
                     from_nodes = df_arcs.iloc[r_arcs]["from_node"].values
                     to_nodes = df_arcs.iloc[r_arcs]["to_node"].values
@@ -142,6 +150,7 @@ def run_eda(data_dir, output_dir):
                 "pct_1s_gaps": pct_1s_gaps,
                 "max_time_gap_s": max_time_gap,
                 "route_is_continuous": route_is_continuous,
+                "route_invalid_arcs": route_invalid_arcs,
                 "min_lon": min_lon, "max_lon": max_lon,
                 "min_lat": min_lat, "max_lat": max_lat
             })
@@ -150,15 +159,15 @@ def run_eda(data_dir, output_dir):
     df_inventory.to_csv(os.path.join(tables_dir, "trip_inventory_detailed.csv"), index=False)
     pd.DataFrame(large_gaps_records).to_csv(os.path.join(tables_dir, "large_gps_gaps.csv"), index=False)
 
-    # Road network analysis on sample trips
-    sample_trips = ["00000001", "00000002", "00000005", "00000010", "00000025", "00000000", "00000007"]
+    # Road network analysis on ALL trips (train + student_test)
+    print("Analysing road-network topology with NetworkX (all trips)...")
     graph_stats = []
     for part in partitions:
         part_dir = os.path.join(data_dir, part)
         if not os.path.exists(part_dir):
             continue
-        for tid in os.listdir(part_dir):
-            if tid in sample_trips:
+        for tid in sorted(os.listdir(part_dir)):
+            if os.path.isdir(os.path.join(part_dir, tid)):
                 n_fp = os.path.join(part_dir, tid, f"{tid}.nodes")
                 a_fp = os.path.join(part_dir, tid, f"{tid}.arcs")
                 if os.path.exists(n_fp) and os.path.exists(a_fp):
@@ -172,6 +181,8 @@ def run_eda(data_dir, output_dir):
                     largest_wcc = max(wccs) if wccs else 0
                     sccs = [len(c) for c in nx.strongly_connected_components(G)]
                     largest_scc = max(sccs) if sccs else 0
+                    indeg = np.bincount(da["v"].to_numpy(), minlength=len(dn))
+                    outdeg = np.bincount(da["u"].to_numpy(), minlength=len(dn))
 
                     graph_stats.append({
                         "partition": part,
@@ -180,6 +191,8 @@ def run_eda(data_dir, output_dir):
                         "total_arcs": len(da),
                         "isolated_nodes": isolates,
                         "pct_isolated_nodes": (isolates / len(dn)) * 100.0,
+                        "source_nodes (in=0, out>0)": int(((indeg == 0) & (outdeg > 0)).sum()),
+                        "sink_nodes (out=0, in>0)": int(((outdeg == 0) & (indeg > 0)).sum()),
                         "weakly_connected_components": len(wccs),
                         "largest_wcc_nodes": largest_wcc,
                         "pct_nodes_in_largest_wcc": (largest_wcc / len(dn)) * 100.0,
@@ -203,12 +216,15 @@ def run_eda(data_dir, output_dir):
             "Total GPS Observations": sub["track_points"].sum(),
             "Mean GPS Points/Trip": round(sub["track_points"].mean(), 1),
             "Median GPS Points/Trip": round(sub["track_points"].median(), 1),
+            "Min GPS Points": int(sub["track_points"].min()),
+            "Max GPS Points": int(sub["track_points"].max()),
             "Total Trajectory Dist (km)": round(sub["dist_m"].sum() / 1000.0, 2),
             "Total Duration (hours)": round(sub["duration_s"].sum() / 3600.0, 2),
-            "Total Nodes": sub["nodes_count"].sum(),
-            "Total Arcs": sub["arcs_count"].sum(),
+            "Total Nodes (sum across trips)": sub["nodes_count"].sum(),
+            "Total Arcs (sum across trips)": sub["arcs_count"].sum(),
             "Total Route Arcs": sub["route_arcs"].sum(),
             "Total Missing Values": sub["null_count"].sum(),
+            "Total Timestamp Disorders": sub["time_disorders"].sum(),
             "Continuous Routes (%)": round((sub["route_is_continuous"].sum() / len(sub)) * 100.0, 1),
             "Total Disk Size (MB)": round((sub["track_size_bytes"].sum() + sub["nodes_size_bytes"].sum() +
                                            sub["arcs_size_bytes"].sum() + sub["route_size_bytes"].sum()) / (1024*1024), 2)
@@ -265,9 +281,83 @@ def run_eda(data_dir, output_dir):
     plt.savefig(os.path.join(plots_dir, "gps_speed_distribution.png"), dpi=300)
     plt.close()
 
-    # Folium Map generation for Trip 00000001
-    generate_folium_map(data_dir, "train", "00000001", os.path.join(maps_dir, "trip_00000001_map.html"))
+    # Road-network topology summary (all 90 trips)
+    g = df_graph.sort_values("pct_nodes_in_largest_wcc").reset_index(drop=True)
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    colors = g["partition"].map({"train": "#1f77b4", "student_test": "#ff7f0e"})
+    axes[0].bar(range(len(g)), g["pct_nodes_in_largest_wcc"], color=colors)
+    axes[0].set_ylim(max(0, g["pct_nodes_in_largest_wcc"].min() - 5), 100.5)
+    axes[0].set_title("Share of nodes in the largest weakly connected component")
+    axes[0].set_xlabel("Trip (sorted; blue = train, orange = student_test)")
+    axes[0].set_ylabel("% of nodes in largest WCC")
+    axes[0].set_xticks([])
+    axes[1].scatter(g["total_nodes"], g["weakly_connected_components"], c=colors, s=25)
+    axes[1].set_xscale("log")
+    axes[1].set_yscale("log")
+    axes[1].set_title("Network size vs number of weakly connected components")
+    axes[1].set_xlabel("Nodes |V| (log)")
+    axes[1].set_ylabel("Weakly connected components (log)")
+    fig.suptitle(f"Road-network topology, {len(g)} trips. Isolated nodes: "
+                 f"{int(df_graph['isolated_nodes'].sum())} in total; self-loops: "
+                 f"{int(df_graph['self_loops'].sum())}")
+    plt.tight_layout()
+    plt.savefig(os.path.join(plots_dir, "road_network_topology_summary.png"), dpi=200)
+    plt.close()
+
+    # Static GPS trajectory + road network plot (for the PDF report)
+    plot_trajectory_static(data_dir, "train", "00000001",
+                           os.path.join(plots_dir, "trajectory_and_network_00000001.png"))
+
+    # Folium maps for two training trips
+    for tid in ["00000001", "00000002"]:
+        generate_folium_map(data_dir, "train", tid, os.path.join(maps_dir, f"trip_{tid}_map.html"))
     print("EDA execution completed successfully.")
+
+
+def plot_trajectory_static(data_dir, partition, trip_id, out_fp, margin=0.003):
+    """Matplotlib view of raw GPS, nearby road network and reference route (lon/lat)."""
+    from matplotlib.collections import LineCollection
+    trip_path = os.path.join(data_dir, partition, trip_id)
+    rd = lambda ext, names: pd.read_csv(os.path.join(trip_path, f"{trip_id}.{ext}"), sep=r"\s+",
+                                        header=None, names=names)
+    tr = rd("track", ["lon", "lat", "t"])
+    nd = rd("nodes", ["lon", "lat"]).to_numpy()
+    ar = rd("arcs", ["u", "v"]).to_numpy()
+    ro = rd("route", ["arc"]).to_numpy().ravel()
+    lo_x, hi_x = tr.lon.min() - margin, tr.lon.max() + margin
+    lo_y, hi_y = tr.lat.min() - margin, tr.lat.max() + margin
+    a, b = nd[ar[:, 0]], nd[ar[:, 1]]
+    keep = ((np.maximum(a[:, 0], b[:, 0]) >= lo_x) & (np.minimum(a[:, 0], b[:, 0]) <= hi_x) &
+            (np.maximum(a[:, 1], b[:, 1]) >= lo_y) & (np.minimum(a[:, 1], b[:, 1]) <= hi_y))
+    lat0 = tr.lat.mean()
+    fig, axes = plt.subplots(1, 2, figsize=(14, 8), gridspec_kw={"width_ratios": [1, 1.6]})
+    # right panel: ~600 m window around the middle of the trip, to show GPS noise vs the route
+    mid = tr.iloc[len(tr) // 2]
+    half_lat = 300 / 111_000.0
+    half_lon = half_lat / np.cos(np.radians(lat0))
+    views = [("Whole trip", lo_x, hi_x, lo_y, hi_y, 2, 0.3),
+             ("Zoom: ~600 m window at mid-trip", mid.lon - half_lon, mid.lon + half_lon,
+              mid.lat - half_lat, mid.lat + half_lat, 18, 0.8)]
+    for ax, (title, x0, x1, y0, y1, ms, lw) in zip(axes, views):
+        ax.add_collection(LineCollection(np.stack([a[keep], b[keep]], 1), colors="#9a9a9a",
+                                         linewidths=lw, label="road network (arcs)"))
+        ax.add_collection(LineCollection(np.stack([nd[ar[ro, 0]], nd[ar[ro, 1]]], 1), colors="#2ca02c",
+                                         linewidths=4, alpha=0.8, label="reference route"))
+        ax.scatter(tr.lon, tr.lat, s=ms, c="#1f77b4", edgecolors="white", linewidths=0.3,
+                   label="raw GPS fixes", zorder=3)
+        ax.set_xlim(x0, x1)
+        ax.set_ylim(y0, y1)
+        ax.set_aspect(1.0 / np.cos(np.radians(lat0)))  # equal metres in x and y
+        ax.set_xlabel("longitude")
+        ax.set_ylabel("latitude")
+        ax.set_title(title)
+    axes[0].add_patch(plt.Rectangle((mid.lon - half_lon, mid.lat - half_lat), 2 * half_lon, 2 * half_lat,
+                                    fill=False, ec="red", lw=1.5))
+    axes[1].legend(loc="lower right", framealpha=0.95)
+    fig.suptitle(f"Trip {trip_id} ({partition}): raw GPS trajectory, road network and reference route")
+    plt.tight_layout()
+    plt.savefig(out_fp, dpi=200)
+    plt.close()
 
 def generate_folium_map(data_dir, partition, trip_id, out_fp):
     trip_path = os.path.join(data_dir, partition, trip_id)
@@ -286,7 +376,6 @@ def generate_folium_map(data_dir, partition, trip_id, out_fp):
 
     m = folium.Map(location=[df_track["lat"].mean(), df_track["lon"].mean()], zoom_start=15, tiles=None)
     folium.TileLayer("OpenStreetMap", name="OpenStreetMap").add_to(m)
-    folium.TileLayer("CartoDB Positron", name="CartoDB Positron (Light)").add_to(m)
 
     # Road Network
     node_coords = df_nodes[["lat", "lon"]].values
@@ -335,13 +424,25 @@ def generate_folium_map(data_dir, partition, trip_id, out_fp):
     folium.Marker([df_track.iloc[-1]["lat"], df_track.iloc[-1]["lon"]], popup=f"Trip {trip_id} End", icon=folium.Icon(color="red", icon="stop", prefix="fa")).add_to(fg_gps)
     fg_gps.add_to(m)
 
+    legend = f"""<div style="position:fixed;bottom:30px;left:30px;z-index:9999;background:white;
+      padding:8px 12px;border:1px solid #888;border-radius:4px;font-size:13px">
+      <b>Trip {trip_id} ({partition})</b><br>
+      <span style="color:#7f7f7f">&#9644;</span> road network (arcs)<br>
+      <span style="color:#2ca02c">&#9644;</span> reference route<br>
+      <span style="color:#3182bd">&#9679;</span> raw GPS fix (dashed line = GPS sequence)<br>
+      <span style="color:green">&#9654;</span> start &nbsp; <span style="color:red">&#9632;</span> end</div>"""
+    m.get_root().html.add_child(folium.Element(legend))
     folium.LayerControl(position="topright", collapsed=False).add_to(m)
+    m.fit_bounds([[df_track["lat"].min(), df_track["lon"].min()],
+                  [df_track["lat"].max(), df_track["lon"].max()]])
     m.save(out_fp)
     print(f"Saved interactive Folium map to {out_fp}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="PathSnap Task C EDA")
-    parser.add_argument("--data_dir", type=str, default=r"C:\Users\Arnav Sharma\.gemini\antigravity\scratch\pathsnap\data")
+    default_data = os.environ.get("PATHSNAP_DATA", os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "..", "Student folder", "Student folder"))
+    parser.add_argument("--data_dir", type=str, default=default_data)
     parser.add_argument("--output_dir", type=str, default=os.path.dirname(os.path.abspath(__file__)))
     args = parser.parse_args()
     run_eda(args.data_dir, args.output_dir)
