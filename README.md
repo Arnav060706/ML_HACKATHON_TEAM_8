@@ -4,6 +4,8 @@
 
 PathSnap is an end-to-end distributed machine learning system designed to reconstruct realistic vehicle trajectories by matching noisy, sparse GPS observations to real-world road networks. The system combines local UTM projection, KD-tree candidate arc generation, supervised machine learning classifiers, and Hidden Markov Model (HMM) Viterbi decoding served across a two-laptop distributed architecture.
 
+> **Status:** EDA, preprocessing, candidate generation, labelling, feature engineering, training of five model families and evidence-based model selection are complete (Evaluation 1). Bayesian tuning, the HMM/Viterbi decoder and the API/UI integration are in progress. `api/app.py` and `ui/index.html` are skeletons and do not yet return predictions.
+
 ---
 
 ## 1. System Architecture & Repository Structure
@@ -30,12 +32,13 @@ ML_HACKATHON_TEAM_8/
 │   │   ├── gps_sampling_interval_distribution.png
 │   │   ├── gps_speed_distribution.png
 │   │   ├── road_network_topology_summary.png
+│   │   ├── trajectory_and_network_00000001.png  # GPS + road network + route (static)
 │   │   └── trajectory_length_and_points.png
 │   └── tables/                        # Detailed statistical CSV reports
 │       ├── partition_inventory_summary.csv
 │       ├── trip_inventory_detailed.csv
 │       ├── large_gps_gaps.csv
-│       └── road_network_graph_analysis.csv
+│       └── road_network_graph_analysis.csv  # NetworkX topology of all 90 trip networks
 ├── features/                          # Spatial indexing and feature engineering (Task A)
 │   ├── candidates.py                  # Densified KD-tree arc candidate generation
 │   ├── geometry.py                    # UTM conversions, segment projections, headings
@@ -44,8 +47,10 @@ ML_HACKATHON_TEAM_8/
 │   ├── miss_rate_sweep.py             # Sweep over radius R and top-k
 │   ├── label_check_map.py             # Visual label validation maps
 │   └── validate_tables.py             # Table schema and integrity validation
-├── models/                            # Model training, comparison and HMM decoder (Task B)
-│   └── README.md                      # GroupKFold harness, candidate models & metrics
+├── models/                            # Model training and comparison (Task B)
+│   ├── run_experiments.py             # GroupKFold harness: 5 model families + rule baselines
+│   ├── select_model.py                # Evidence-based model selection + confusion matrices
+│   └── README.md                      # Protocol, models, metrics and selection
 ├── results/                           # Experiment outputs, tables, and metric summaries
 │   ├── baseline_top1.csv              # Distance and heading heuristic baselines
 │   ├── candidate_miss_rate.csv        # Candidate recall sweep across (R, k)
@@ -54,6 +59,14 @@ ML_HACKATHON_TEAM_8/
 │   ├── feature_label_means.csv        # Feature contrast between true and false arcs
 │   ├── label_alignment_stats.csv      # Route coverage and alignment statistics
 │   ├── preprocessing_report.csv       # Per-trip UTM zones, time gaps, and route breaks
+│   ├── model_comparison.csv           # All metrics: CV mean + student-test, per model
+│   ├── cv_per_fold.csv                # Per-fold CV metrics (stability)
+│   ├── configs.json                   # Model configs, seed, features, protocol
+│   ├── model_selection.md / .csv      # Ranked selection evidence and decision
+│   ├── confusion_matrices.png         # Student-test confusion matrices
+│   ├── mlp_loss_curve.png             # MLP training loss (only model with epochs)
+│   ├── *_comparison.png               # CV macro-F1, test Top-1/macro-F1, log loss plots
+│   ├── section_3_model_comparison_table.md  # Report Section 3.1 table
 │   └── maps/                          # Ground truth alignment verification maps
 ├── ui/                                # Evaluator user interface (Laptop 2)
 │   ├── index.html                     # Standalone browser interface for route testing
@@ -76,13 +89,18 @@ ML_HACKATHON_TEAM_8/
 * **Optimal Radius:** A sweep on the 80 training trips demonstrated that **$R = 100\text{ m}, k = 8$** achieves a candidate miss rate of **$1.37\%$** (averaging 6.7 candidates per point), outperforming $R = 50\text{ m}$ ($2.00\%$ miss rate).
 
 ### Road Network Topology (NetworkX)
-* Across all road networks, there are **0 isolated nodes** ($0.0\%$).
-* Over **93.4%–98.9%** of road network nodes reside in a single giant Weakly Connected Component (WCC). Minor disjoint components correspond to bounding-box spatial cropping or isolated pedestrianways.
+* Analysed on **all 90 trip networks** (train + student_test): **0 isolated nodes** and **12 self-loops** in total.
+* The largest Weakly Connected Component (WCC) holds a median **98.0%** of each network's nodes (range 69.3% for trip 95 to 100%). Minor disjoint components correspond to bounding-box spatial cropping or isolated pedestrian ways.
 
 ### Trajectory Quality & Tracking Gaps
 * **Data Integrity:** **0 missing values (NaNs)**, **0 timestamp inversions**, and **0 duplicate timestamps** across 227,577 observations.
 * **Sampling Rate:** Nominally 1 Hz (**94.32%** of steps are exactly $1.0\text{ s}$).
-* **Pause Handling:** Tracking pauses up to 42.5 hours exist in several trips. The HMM decoder segments chains whenever $\Delta t > 30\text{ s}$.
+* **Pause Handling:** Tracking pauses up to 42.5 hours exist in several trips. They are exposed to the classifier through the `dt_prev` / `dt_next` features. The planned HMM decoder will split the Viterbi chain at large gaps (threshold to be tuned on train/student_test).
+
+### Model Training & Selection (Task B)
+* Candidate-level binary classification, **GroupKFold(5) by `trip_id`** on the 80 training trips, refit on all 80, evaluated on the 10 student-test trips. Seed 42; scalers inside pipelines; fitted on `label_reliable == 1` rows.
+* Five algorithm families: Logistic Regression, KNN, Random Forest, HistGradientBoosting, MLP (+ three untrained rule baselines).
+* **Selected model: Random Forest** (`results/model_selection.md`). It is best on CV Top-1 (0.8365), CV log loss (0.1081, best in 5/5 folds) and CV macro-F1 (0.9073 ± 0.017). On student-test: Top-1 0.8636, macro-F1 0.9180, log loss 0.0966.
 
 ---
 
@@ -102,11 +120,24 @@ pip install -r requirements.txt
 python eda/run_eda.py --data_dir /path/to/raw_dataset
 ```
 
-### Feature Engineering & Candidate Generation
+The raw data is not committed. Scripts look for it at `../Student folder/Student folder` (next to the repo) or at the path in the `PATHSNAP_DATA` environment variable.
+
+### Preprocessing, Candidate Generation & Feature Engineering
 ```bash
-python features/build_features.py
-python features/validate_tables.py
+python data_processing/preprocessing_report.py   # per-trip QA, UTM zones, gaps
+python features/miss_rate_sweep.py               # choose R and k on train trips
+python features/build_features.py                # -> data/processed/*.parquet
+python features/validate_tables.py               # sanity checks, rule baselines, plot
 ```
+
+### Model Training & Selection
+```bash
+python models/run_experiments.py                 # 5 models, GroupKFold CV + student-test (~20+ min)
+python results/plot_model_comparison.py          # comparison plots + Section 3.1 table
+python models/select_model.py                    # model_selection.md + confusion matrices
+```
+
+See `docs/partition_usage.md` for which dataset partition every analysis uses.
 
 ---
 

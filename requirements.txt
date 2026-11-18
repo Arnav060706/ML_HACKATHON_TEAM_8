@@ -4,5 +4,15 @@ scipy
 pyproj
 pyarrow
 scikit-learn
+joblib
 networkx
 folium
+matplotlib
+seaborn
+# API (Laptop 1)
+fastapi
+uvicorn
+pydantic
+# optional: models/run_experiments.py uses LightGBM if installed, otherwise
+# sklearn's HistGradientBoostingClassifier (the reported results use the latter)
+# lightgbm
